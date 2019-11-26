@@ -35,7 +35,7 @@ class Config(object):
         self.input_norm  = True # normalize RGB to 0-1 range
 
         #### Info for running inference
-        self.inf_model_path  = 'weights/hovernet.npz'
+        self.inf_model_path  = '/weights_path/hovernet.npz'
 
         # WSI processing
         self.tissue_inf = True
