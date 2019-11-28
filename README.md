@@ -20,15 +20,15 @@ If you require the model to be trained, refer to the [original repository](https
 
 Before running the code:
 + [Download HoVer-Net weights](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing)
-+ In `config.py`, set: 
-1. `self.inf_model_path`: location of `hovernet.npz` weights file
-2. `self.inf_output_dir`: directory where results are saved
-+ If processing WSIs, set:
-1. `self.inf_wsi_ext` : WSI file extension 
-2. `self.inf_wsi_dir` : directory where WSIs are located
-+ If processing ROIS, set:
-1. `self.inf_imgs_ext` : ROI file extension
-2. `self.inf_data_dir` : directory where ROIs are located
++ In `config.py`, set: <br />
+`self.inf_model_path`: location of `hovernet.npz` weights file <br />
+`self.inf_output_dir`: directory where results are saved
++ If processing WSIs, set: <br />
+`self.inf_wsi_ext` : WSI file extension <br />
+`self.inf_wsi_dir` : directory where WSIs are located
++ If processing ROIS, set: <br />
+`self.inf_imgs_ext` : ROI file extension <br />
+`self.inf_data_dir` : directory where ROIs are located
 
 Note, other hyperparameters such as batch size and WSI processing level can be tuned. Refer to comments in `config.py.` <br />
 
