@@ -21,7 +21,53 @@ from skimage.measure import regionprops
 from misc.utils import bounding_box
 
 ####
-def process_instance(pred_map, type_classification, nr_types, patch_coords, remap_label=False):
+def process_instance(pred_map, type_classification, nr_types, remap_label=False, output_dtype='uint16'):
+    # Post processing
+    cfg = Config()
+
+    if type_classification:
+        pred_inst = pred_map[..., nr_types:]
+        pred_type = pred_map[..., :nr_types]
+
+        pred_inst = np.squeeze(pred_inst)
+        pred_type = np.argmax(pred_type, axis=-1)
+        pred_type = np.squeeze(pred_type)
+
+    else:
+        pred_inst = pred_map
+
+    pred_inst = postproc.hover.proc_np_hv(pred_inst,
+                                            marker_mode=2,
+                                            energy_mode=2, rgb=None)
+    
+    # remap label is very slow - only uncomment if necessary to map labels in order
+    if remap_label:
+        pred_inst = remap_label(pred_inst, by_size=True)
+    
+    if type_classification:
+        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
+        #### * Get class of each instance id, stored at index id-1
+        pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
+        pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
+        for idx, inst_id in enumerate(pred_id_list):
+            inst_tmp = pred_inst == inst_id
+            inst_type = pred_type[pred_inst == inst_id]
+            type_list, type_pixels = np.unique(inst_type, return_counts=True)
+            type_list = list(zip(type_list, type_pixels))
+            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+            inst_type = type_list[0][0]
+            if inst_type == 0: # ! pick the 2nd most dominant if exist
+                if len(type_list) > 1:
+                    inst_type = type_list[1][0]
+            pred_type_out += (inst_tmp * inst_type)
+    
+    pred_inst = pred_inst.astype(output_dtype)
+    pred_type_out = pred_type_out.astype(output_dtype)
+
+    return pred_inst, pred_type_out
+####
+
+def process_coords(pred_map, type_classification, nr_types, patch_coords, remap_label=False):
     # Post processing
     cfg = Config()
     summary_cent = []

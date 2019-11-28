@@ -17,13 +17,6 @@ class Config(object):
         self.nr_types = 6  # denotes number of classes for nuclear type classification
         self.nr_classes = 2 # Nuclei Pixels vs Background
 
-        #### Dynamically setting the config file into variable
-        config_file = importlib.import_module('opt.hover') # np_hv, np_dist
-        config_dict = config_file.__getattribute__(self.model_type)
-
-        for variable, value in config_dict.items():
-            self.__setattr__(variable, value)
-
         self.infer_input_shape = [256, 256]
         self.infer_mask_shape = [164, 164] 
         self.inf_batch_size = 25
@@ -35,22 +28,22 @@ class Config(object):
         self.input_norm  = True # normalize RGB to 0-1 range
 
         #### Info for running inference
-        self.inf_model_path  = '/weights_path/hovernet.npz'
+        self.inf_model_path  = '/path_to_weights/hovernet.npz'
 
         # WSI processing
         self.tissue_inf = True
         self.inf_wsi_ext = '.svs'
-        self.inf_wsi_dir = '/wsi_data_path/'
-        self.proc_level = 2
+        self.inf_wsi_dir = '/path_to_wsis/'
+        self.proc_level = 0
         self.tiss_level = 3
         self.nr_tiles_h = 4
         self.nr_tiles_w = 4
 
         # ROI processing
         self.inf_imgs_ext = '.png'
-        self.inf_data_dir = '/roi_data_path/'
+        self.inf_data_dir = '/path_to_rois/'
 
-        self.inf_output_dir = '/output_path/'
+        self.inf_output_dir = '/path_to_output/'
 
         # for inference during evalutaion mode i.e run by infer.py
         self.eval_inf_input_tensor_names = ['images']

@@ -7,9 +7,6 @@ from collections import deque
 import cv2
 import numpy as np
 from scipy import io as sio
-import openslide as ops 
-import operator
-import progressbar
 import matplotlib.pyplot as plt 
 
 from tensorpack.predict import OfflinePredictor, PredictConfig
@@ -17,10 +14,8 @@ from tensorpack.tfutils.sessinit import get_model_loader
 
 from config import Config
 from misc.utils import rm_n_mkdir
+from misc.viz_utils import visualize_instances
 import postproc.process_utils as proc_utils
-
-import matlab
-from matlab import engine
 
 import time
 from time import sleep
@@ -132,7 +127,7 @@ class InferROI(Config):
             ##
             pred_map = self.__gen_prediction(img, predictor)
 
-            pred_inst, pred_type = process_instance(pred_map, type_classification=True, nr_types=self.nr_types)
+            pred_inst, pred_type = proc_utils.process_instance(pred_map, type_classification=True, nr_types=self.nr_types)
 
             overlaid_output = visualize_instances(pred_inst, pred_type, img)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
@@ -150,10 +145,10 @@ class InferCoords(Config):
         Loads a patch from an OpenSlide object
         '''
         if self.inf_wsi_ext == '.jp2':
-            y1 = int(location[0] / pow(2, level)) + 1
-            x1 = int(location[1] / pow(2, level)) + 1
-            y2 = int(y1 + patch_size[0] -1)
-            x2 = int(x1 + patch_size[1] -1)
+            y1 = int(location[1] / pow(2, level)) + 1
+            x1 = int(location[0] / pow(2, level)) + 1
+            y2 = int(y1 + patch_size[1] -1)
+            x2 = int(x1 + patch_size[0] -1)
             # this will read patch using matlab engine
             patch = self.wsiObj.read_region(self.full_filename, level, matlab.int32([x1,x2,y1,y2]))
             patch = np.array(patch._data).reshape(patch.size, order='F')
@@ -297,7 +292,7 @@ class InferCoords(Config):
                 for j in range(len(mini_output)):
                     # Post processing
                     patch_coords = mini_batch2[j]
-                    summary_cent, summary_type = proc_utils.process_instance(
+                    summary_cent, summary_type = proc_utils.process_coords(
                         mini_output[j], self.type_classification, self.nr_types, patch_coords
                     )
                     
@@ -317,7 +312,7 @@ class InferCoords(Config):
                 for j in range(len(mini_output)):
                     # Post processing
                     patch_coords = self.patch_coords[j]
-                    summary_cent, summary_type = proc_utils.process_instance(
+                    summary_cent, summary_type = proc_utils.process_coords(
                         mini_output[j], self.type_classification, self.nr_types, patch_coords
                     )
                     
@@ -434,12 +429,21 @@ if __name__ == '__main__':
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     n_gpus = len(args.gpu.split(','))
 
+    # Import libraries for WSI processing
+    if args.mode.split('_')[0] == 'wsi':
+        import openslide as ops 
+        import matlab
+        from matlab import engine
+        import progressbar
+
     if args.mode == 'roi_seg':
         infer = InferROI()
         infer.run() 
     elif args.mode == 'wsi_coords':
         infer = InferCoords()
-        infer.run()
+        infer.load_model() 
+        infer.load_filenames()
+        infer.process_all_wsi()  
     else:
         print('Mode not recognised. Use either "roi_seg" or "wsi_coords"')
 
