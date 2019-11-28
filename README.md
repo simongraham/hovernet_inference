@@ -26,7 +26,7 @@ Before running the code:
 + If processing WSIs, set: <br />
 `self.inf_wsi_ext` : WSI file extension <br />
 `self.inf_wsi_dir` : directory where WSIs are located
-+ If processing ROIS, set: <br />
++ If processing ROIs, set: <br />
 `self.inf_imgs_ext` : ROI file extension <br />
 `self.inf_data_dir` : directory where ROIs are located
 
@@ -64,3 +64,5 @@ BibTex entry: <br />
 - [ ] ROI coordinates code
 - [ ] WSI segmentation code
 - [x] WSI coordinates code
+- [ ] Fix JP2 processing code
+
