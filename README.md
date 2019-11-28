@@ -1,8 +1,7 @@
 # HoVer-Net Inference Code
 
-HoVer-Net inference code for simultaneous nuclear segmentation and classification in histology images. <br />
-This repository is a simplified version of the original HoVer-Net respository and is specifically designed for ROI and WSI processing. Therefore, it only contains inference code. <br />
-If you require the model to be trained, refer to the original respository.
+HoVer-Net ROI and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
+If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
 
 [Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
 
@@ -24,10 +23,10 @@ Before running the code:
 + In `config.py`, set: 
 1. `self.inf_model_path`: location of `hovernet.npz` weights file
 2. `self.inf_output_dir`: directory where results are saved
-+ Then, if processing WSIs:
++ If processing WSIs, set:
 1. `self.inf_wsi_ext` : WSI file extension 
 2. `self.inf_wsi_dir` : directory where WSIs are located
-+ If processing ROIS:
++ If processing ROIS, set:
 1. `self.inf_imgs_ext` : ROI file extension
 2. `self.inf_data_dir` : directory where ROIs are located
 
