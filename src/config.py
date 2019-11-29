@@ -35,9 +35,9 @@ class Config(object):
         self.inf_wsi_ext = '.svs'
         self.inf_wsi_dir = '/path_to_wsis/'
         self.proc_level = 0
-        self.tiss_level = 2
-        self.nr_tiles_h = 4
-        self.nr_tiles_w = 4
+        self.tiss_level = 4
+        self.nr_tiles_h = 5
+        self.nr_tiles_w = 5
 
         # ROI processing
         self.inf_imgs_ext = '.png'
