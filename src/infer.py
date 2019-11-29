@@ -664,10 +664,14 @@ class InferWSI(Config):
             sleep(0.1)
 
             self.extract_patches(tile)
-
+            
+            img_tile = self.read_region((self.tile_info[tile][0], self.tile_info[tile][1]),
+                                    self.proc_level, (self.tile_info[tile][2], self.tile_info[tile][3]))    
+            
             pred_map = self.run_inference(tile, save_zeros=False)
             if pred_map is not None:
-                np.save('%s/%s_%s.npy' % (self.inf_output_dir, self.basename, str(tile)), pred_map)
+                np.save('%s/%s/%s_%s.npy' % (self.inf_output_dir, self.basename, self.basename, str(tile)), pred_map)
+                plt.imsave('%s/%s/%s_%s.png' % (self.inf_output_dir, self.basename, self.basename, str(tile)), img_tile)
             
         bar.finish()      
     ####
@@ -693,6 +697,7 @@ class InferWSI(Config):
         '''
         self.file_list = glob.glob('%s/*%s' % (self.inf_wsi_dir, self.inf_wsi_ext))
         self.file_list.sort() # ensure same order
+        self.file_list = self.file_list[:125]
 ####
     
     def process_all_wsi(self):
@@ -700,9 +705,10 @@ class InferWSI(Config):
         Process each WSI one at a time and save results as npz file
         '''
         self.save_dir = self.inf_output_dir
-        rm_n_mkdir(self.save_dir) 
+        #rm_n_mkdir(self.save_dir) 
 
         for filename in self.file_list:
+            rm_n_mkdir(self.save_dir + '/' + self.basename)
             start_time_total = time.time()
             self.process_wsi(filename)
             end_time_total = time.time()
@@ -723,9 +729,10 @@ if __name__ == '__main__':
     # Import libraries for WSI processing
     if args.mode.split('_')[0] == 'wsi':
         import openslide as ops 
-        import matlab
-        from matlab import engine
         import progressbar
+        if self.inf_wsi_ext == '.jp2'
+            import matlab
+            from matlab import engine
 
     if args.mode == 'roi_seg':
         infer = InferROI()
