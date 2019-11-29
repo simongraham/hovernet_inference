@@ -68,7 +68,8 @@ Please note, the Pecan dataset is not currently publicly available and until acc
 
 - [x] ROI segmentation code
 - [ ] ROI coordinates code
-- [ ] WSI segmentation code
+- [x] WSI segmentation code
 - [x] WSI coordinates code
 - [ ] Fix JP2 processing code
 
+Note, WSI segmentation code currently saves individual tiles - need to optimise
