@@ -568,7 +568,7 @@ class InferWSI(Config):
                     pred_inst, pred_type = proc_utils.process_instance(
                         mini_output[j], self.type_classification, self.nr_types
                     )
-                    mini_output_proc.append(pred_inst)
+                    mini_output_proc.append(pred_type)
                 pred_map.extend(mini_output_proc)
 
             # Deal with the case when the number of patches is not divisible by batch size
@@ -581,7 +581,7 @@ class InferWSI(Config):
                     pred_inst, pred_type = proc_utils.process_instance(
                         mini_output[j], self.type_classification, self.nr_types
                     )
-                    mini_output_proc.append(pred_inst)
+                    mini_output_proc.append(pred_type)
                 pred_map.extend(mini_output_proc)
 
             output_patch_shape = np.squeeze(pred_map[0]).shape
