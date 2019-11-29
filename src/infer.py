@@ -628,12 +628,12 @@ class InferWSI(Config):
         4) Extract patches from foreground regions
         4) Run inference and return centroids and class predictions
         '''
-        filename = os.path.basename(filename)
-        self.basename = filename.split('.')[0]
+       
         print('Processing', self.basename, end='. ', flush=True)
 
         # Load the OpenSlide WSI object
         self.full_filename = self.inf_wsi_dir + filename
+        print(self.full_filename)
         self.load_wsi()
 
         self.ds_factor = self.level_downsamples[self.proc_level]
@@ -663,15 +663,16 @@ class InferWSI(Config):
             bar.update(tile+1)
             sleep(0.1)
 
-            self.extract_patches(tile)
-            
-            img_tile = self.read_region((self.tile_info[tile][0], self.tile_info[tile][1]),
-                                    self.proc_level, (self.tile_info[tile][2], self.tile_info[tile][3]))    
+            self.extract_patches(tile)   
             
             pred_map = self.run_inference(tile, save_zeros=False)
             if pred_map is not None:
                 np.save('%s/%s/%s_%s.npy' % (self.inf_output_dir, self.basename, self.basename, str(tile)), pred_map)
+                pred_map = None
+                img_tile = self.read_region((self.tile_info[tile][0], self.tile_info[tile][1]),
+                                    self.proc_level, (self.tile_info[tile][2], self.tile_info[tile][3])) 
                 plt.imsave('%s/%s/%s_%s.png' % (self.inf_output_dir, self.basename, self.basename, str(tile)), img_tile)
+                img_tile = None
             
         bar.finish()      
     ####
@@ -697,7 +698,6 @@ class InferWSI(Config):
         '''
         self.file_list = glob.glob('%s/*%s' % (self.inf_wsi_dir, self.inf_wsi_ext))
         self.file_list.sort() # ensure same order
-        self.file_list = self.file_list[:125]
 ####
     
     def process_all_wsi(self):
@@ -708,6 +708,8 @@ class InferWSI(Config):
         #rm_n_mkdir(self.save_dir) 
 
         for filename in self.file_list:
+            filename = os.path.basename(filename)
+            self.basename = filename.split('.')[0]
             rm_n_mkdir(self.save_dir + '/' + self.basename)
             start_time_total = time.time()
             self.process_wsi(filename)
@@ -730,9 +732,8 @@ if __name__ == '__main__':
     if args.mode.split('_')[0] == 'wsi':
         import openslide as ops 
         import progressbar
-        if self.inf_wsi_ext == '.jp2'
-            import matlab
-            from matlab import engine
+        # import matlab
+        # from matlab import engine
 
     if args.mode == 'roi_seg':
         infer = InferROI()
@@ -749,4 +750,3 @@ if __name__ == '__main__':
         infer.process_all_wsi()  
     else:
         print('Mode not recognised. Use either "roi_seg" or "wsi_coords"')
-
