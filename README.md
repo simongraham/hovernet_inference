@@ -69,5 +69,7 @@ Please note, the Pecan dataset is not currently publicly available and until acc
 - [x] ROI segmentation code
 - [x] WSI segmentation code
 - [ ] Fix JP2 processing code
+- [ ] Shaban to integrate his changes
+- [ ] Give environment instructions
 
 Note, WSI segmentation code currently saves results of individual tiles - need to optimise
