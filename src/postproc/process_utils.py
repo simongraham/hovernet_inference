@@ -67,11 +67,12 @@ def process_instance(pred_map, type_classification, nr_types, remap_label=False,
     return pred_inst, pred_type_out
 ####
 
-def process_coords(pred_map, type_classification, nr_types, patch_coords, remap_label=False):
+def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, remap_label=False, get_summary=True, output_dtype='uint16'):
     # Post processing
     cfg = Config()
-    summary_cent = []
-    summary_type = []
+    mask_list_out = []
+    type_list_out = []
+    cent_list_out = []
 
     if type_classification:
         pred_inst = pred_map[..., nr_types:]
@@ -103,10 +104,23 @@ def process_coords(pred_map, type_classification, nr_types, patch_coords, remap_
             inst_tmp = pred_inst == inst_id
 
             inst_tmp = inst_tmp.astype('uint8')
+
+            # get the cropped mask
+            [rmin, rmax, cmin, cmax] = bounding_box(inst_tmp)
+            cropped_inst_ = inst_tmp[rmin:rmax,cmin:cmax]
+            cropped_inst = np.zeros([cropped_inst_.shape[0]+2, cropped_inst_.shape[1]+2])
+            cropped_inst[1:cropped_inst.shape[0]-1, 1:cropped_inst.shape[1]-1] = cropped_inst_
+            cropped_inst = cropped_inst.astype('bool')
+            mask_list_out.append(cropped_inst)
+
+            # get the centroid
             regions = regionprops(inst_tmp)
             centroid = np.array(regions[0].centroid)
             centroid += patch_coords
-   
+            cent_list_out.append(centroid)
+            summary_prob_tmp = []
+            
+            # get the type
             inst_type = pred_type[pred_inst == inst_id]
             type_list, type_pixels = np.unique(inst_type, return_counts=True)
             type_list = list(zip(type_list, type_pixels))
@@ -115,12 +129,10 @@ def process_coords(pred_map, type_classification, nr_types, patch_coords, remap_
             if inst_type == 0: # ! pick the 2nd most dominant if exist
                 if len(type_list) > 1:
                     inst_type = type_list[1][0]
-            
-            if inst_type != 0:
-                summary_cent.append(centroid)
-                summary_type.append(inst_type)
-    
-    return summary_cent, summary_type
+
+            type_list_out.append(inst_type)
+
+    return mask_list_out, type_list_out, cent_list_out
 ####
 
 def img_min_axis(img):
