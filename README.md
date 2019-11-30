@@ -39,8 +39,8 @@ To run, use: <br />
 `<gpu_list>` is a comma separated list indicating the GPUs to use. <br />
 `<inf_mode>` is a string indicating the inference mode. Use either:
 
-- `'roi_seg'`
-- `'wsi_coords'`
+- `'roi'`
+- `'wsi'`
 
 ## Citation 
 
@@ -67,9 +67,7 @@ Please note, the Pecan dataset is not currently publicly available and until acc
 ## Task list
 
 - [x] ROI segmentation code
-- [ ] ROI coordinates code
 - [x] WSI segmentation code
-- [x] WSI coordinates code
 - [ ] Fix JP2 processing code
 
-Note, WSI segmentation code currently saves individual tiles - need to optimise
+Note, WSI segmentation code currently saves results of individual tiles - need to optimise
