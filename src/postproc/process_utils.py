@@ -67,7 +67,8 @@ def process_instance(pred_map, type_classification, nr_types, remap_label=False,
     return pred_inst, pred_type_out
 ####
 
-def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, remap_label=False, get_summary=True, output_dtype='uint16'):
+def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, remap_label=False, offset=0,
+                         scan_resolution=0.25, get_summary=True, output_dtype='uint16'):
     # Post processing
     cfg = Config()
     mask_list_out = []
@@ -87,19 +88,19 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
         pred_inst = pred_map
 
     pred_inst = postproc.hover.proc_np_hv(pred_inst,
-                                            marker_mode=2,
-                                            energy_mode=2, rgb=None)
-    
+                                          marker_mode=2,
+                                          energy_mode=2, rgb=None)
+
     # remap label is very slow - only uncomment if necessary to map labels in order
     if remap_label:
         pred_inst = remap_label(pred_inst, by_size=True)
-    
+
     if type_classification:
-        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
+        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])
         #### * Get class of each instance id, stored at index id-1
-        pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
+        pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
         pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
-        
+
         for idx, inst_id in enumerate(pred_id_list):
             inst_tmp = pred_inst == inst_id
 
@@ -107,32 +108,36 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
 
             # get the cropped mask
             [rmin, rmax, cmin, cmax] = bounding_box(inst_tmp)
-            cropped_inst_ = inst_tmp[rmin:rmax,cmin:cmax]
-            cropped_inst = np.zeros([cropped_inst_.shape[0]+2, cropped_inst_.shape[1]+2])
-            cropped_inst[1:cropped_inst.shape[0]-1, 1:cropped_inst.shape[1]-1] = cropped_inst_
+            cropped_inst_ = inst_tmp[rmin:rmax, cmin:cmax]
+            cropped_inst = np.zeros([cropped_inst_.shape[0] + 2, cropped_inst_.shape[1] + 2])
+            cropped_inst[1:cropped_inst.shape[0] - 1, 1:cropped_inst.shape[1] - 1] = cropped_inst_
             cropped_inst = cropped_inst.astype('bool')
             mask_list_out.append(cropped_inst)
 
             # get the centroid
             regions = regionprops(inst_tmp)
             centroid = np.array(regions[0].centroid)
+            centroid += offset  # offset due to the difference between image and mask size
+            if scan_resolution > 0.35:  # it means image is scanned at 20X
+                centroid /= 2
             centroid += patch_coords
             cent_list_out.append(centroid)
             summary_prob_tmp = []
-            
+
             # get the type
             inst_type = pred_type[pred_inst == inst_id]
             type_list, type_pixels = np.unique(inst_type, return_counts=True)
             type_list = list(zip(type_list, type_pixels))
             type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
             inst_type = type_list[0][0]
-            if inst_type == 0: # ! pick the 2nd most dominant if exist
+            if inst_type == 0:  # ! pick the 2nd most dominant if exist
                 if len(type_list) > 1:
                     inst_type = type_list[1][0]
 
             type_list_out.append(inst_type)
 
     return mask_list_out, type_list_out, cent_list_out
+
 ####
 
 def img_min_axis(img):

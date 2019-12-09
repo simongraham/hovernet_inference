@@ -2,6 +2,7 @@ import argparse
 import glob
 import math
 import os
+import sys
 from collections import deque
 
 import cv2
@@ -117,7 +118,7 @@ class InferROI(Config):
         rm_n_mkdir(save_dir)       
         for filename in file_list:
             filename = os.path.basename(filename)
-            basename = filename.split('.')[0]
+            basename = os.path.splitext(filename)[0]
             print(self.inf_data_dir, basename, end=' ', flush=True)
 
             ##
@@ -176,7 +177,7 @@ class InferWSI(Config):
             self.level_downsamples = []
             for i in range(self.level_count):
                 self.level_downsamples.append(level_downsamples[i][0])
-            pass
+            self.scan_resolution = [0.275, 0.275]  # scan resolution of the Omnyx scanner at UHCW
         else:
             self.wsiObj = ops.OpenSlide(self.full_filename)
             self.level_downsamples = self.wsiObj.level_downsamples
@@ -185,6 +186,8 @@ class InferWSI(Config):
             # flipping cols into rows (Openslide to python format)
             for i in range(self.level_count):
                 self.level_dimensions.append([self.wsiObj.level_dimensions[i][1], self.wsiObj.level_dimensions[i][0]])
+            self.scan_resolution = [float(self.wsiObj.properties.get('openslide.mpp-x')),
+                                    float(self.wsiObj.properties.get('openslide.mpp-y'))]
     ####
     
     def tile_coords(self):
@@ -195,9 +198,9 @@ class InferWSI(Config):
         self.im_w = self.level_dimensions[self.proc_level][1]
         self.im_h = self.level_dimensions[self.proc_level][0]
 
-        if self.nr_tiles_h > 1:
+        if self.nr_tiles_h > 0:
             step_h = math.floor(self.im_h / self.nr_tiles_h)
-        if self.nr_tiles_w > 1:
+        if self.nr_tiles_w > 0:
             step_w = math.floor(self.im_w / self.nr_tiles_w)
 
         self.tile_info = []
@@ -221,15 +224,19 @@ class InferWSI(Config):
 
     def extract_patches(self, tile):
         """
-        # TODO Makeit parallel processing?!
+        # TODO Make it parallel processing?!
 
-        Extracts patches from the WSI before running inference. 
-        If tissue mask is provided, only extract foreground patches  
-        Tile is the tile number index       
+        Extracts patches from the WSI before running inference.
+        If tissue mask is provided, only extract foreground patches
+        Tile is the tile number index
         """
-        step_size = self.infer_mask_shape
-        msk_size = self.infer_mask_shape
-        win_size = self.infer_input_shape
+        step_size = np.array(self.infer_mask_shape)
+        msk_size = np.array(self.infer_mask_shape)
+        win_size = np.array(self.infer_input_shape)
+        if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
+            step_size = np.int64(step_size / 2)
+            msk_size = np.int64(msk_size / 2)
+            win_size = np.int64(win_size / 2)
 
         def get_last_steps(length, msk_size, step_size):
             nr_step = math.ceil((length - msk_size) / step_size)
@@ -243,30 +250,56 @@ class InferWSI(Config):
         start_w = self.tile_info[tile][0]
         last_h += start_h
         last_w += start_w
-                                 
+
         self.sub_patches = []
         self.skipped_idx = []
         self.patch_coords = []
 
-        # Generating sub-patches from WSI                     
+        # Generating sub-patches from WSI
         idx = 0
         for row in range(start_h, last_h, step_size[0]):
-            for col in range(start_w, last_w, step_size[1]):  
-                win = self.read_region((int(col*self.ds_factor), int(row*self.ds_factor)),
-                                    self.proc_level, (win_size[0], win_size[1]))                            
+            for col in range(start_w, last_w, step_size[1]):
                 if self.tissue is not None:
-                    win_tiss = self.tissue[int(round(row/self.ds_factor_tiss)):int(round(row/self.ds_factor_tiss))+int(round(win_size[0]/self.ds_factor_tiss)),
-                                      int(round(col/self.ds_factor_tiss)):int(round(col/self.ds_factor_tiss))+int(round(win_size[1]/self.ds_factor_tiss))]
-                    tiss_vals = np.unique(win_tiss)
-                    tiss_vals = tiss_vals.tolist()
-                    if 1 in tiss_vals:
-                        self.sub_patches.append(win)
-                        self.patch_coords.append([row,col])
+                    win_tiss = self.tissue[
+                               int(round(row / self.ds_factor_tiss)):int(round(row / self.ds_factor_tiss)) + int(
+                                   round(win_size[0] / self.ds_factor_tiss)),
+                               int(round(col / self.ds_factor_tiss)):int(round(col / self.ds_factor_tiss)) + int(
+                                   round(win_size[1] / self.ds_factor_tiss))]
+                    # tiss_vals = np.unique(win_tiss)
+                    # tiss_vals = tiss_vals.tolist()
+                    # if 1 in tiss_vals:
+                    if np.sum(win_tiss) > 0:
+                        # win = self.read_region((int(col * self.ds_factor), int(row * self.ds_factor)),
+                        #                        self.proc_level, (win_size[0], win_size[1]))
+                        # # resize if 20x
+                        # self.sub_patches.append(win)
+                        self.patch_coords.append([row, col])
                     else:
                         self.skipped_idx.append(idx)
                 else:
-                    self.sub_patches.append(win)
+                    # win = self.read_region((int(col * self.ds_factor), int(row * self.ds_factor)),
+                    #                        self.proc_level, (win_size[0], win_size[1]))
+                    # # resize if 20x
+                    # self.sub_patches.append(win)
+                    self.patch_coords.append([row, col])
                 idx += 1
+
+    ####
+
+    def load_batch(self, batch_coor):
+        batch = []
+        win_size = self.infer_input_shape
+        if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
+            win_size = np.int64(np.array(self.infer_input_shape)/2)
+
+        for coor in batch_coor:
+            win = self.read_region((int(coor[1] * self.ds_factor), int(coor[0] * self.ds_factor)),
+                                   self.proc_level, (win_size[0], win_size[1]))
+            if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
+                win = cv2.resize(win, (win.shape[1]*2, win.shape[0]*2), cv2.INTER_LINEAR) # cv.INTER_LINEAR is good for zooming
+            batch.append(win)
+        return batch
+
     ####
 
     def run_inference(self, tile):
@@ -279,12 +312,23 @@ class InferWSI(Config):
         mask_list = []
         type_list = []
         cent_list = []
+        offset = (self.infer_input_shape[0] - self.infer_mask_shape[0]) / 2
+        idx = 0
+        batch_count = np.floor(len(self.patch_coords) / self.inf_batch_size)
 
-        if len(self.sub_patches) > 0:
-            while len(self.sub_patches) > self.inf_batch_size:
-                mini_batch = self.sub_patches[:self.inf_batch_size]
-                mini_batch2 = self.patch_coords[:self.inf_batch_size]
-                self.sub_patches = self.sub_patches[self.inf_batch_size:]
+        if len(self.patch_coords) > 0:
+            while len(self.patch_coords) > self.inf_batch_size:
+                # print('Batch(%d/%d) of Tile(%d/%d)' % (idx+1, batch_count, tile+1, self.nr_tiles_h*self.nr_tiles_w ))
+                sys.stdout.write("\rBatch(%d/%d) of Tile(%d/%d)" % (
+                idx + 1, batch_count, tile + 1, self.nr_tiles_h * self.nr_tiles_w))
+                sys.stdout.flush()
+                idx += 1
+                # bar.update(idx)
+                # sleep(0.1)
+                # mini_batch = self.sub_patches[:self.inf_batch_size]
+                mini_batch_coor = self.patch_coords[:self.inf_batch_size]
+                mini_batch = self.load_batch(mini_batch_coor)
+                # self.sub_patches = self.sub_patches[self.inf_batch_size:]
                 self.patch_coords = self.patch_coords[self.inf_batch_size:]
                 mini_output = self.predictor(mini_batch)[0]
                 mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
@@ -293,9 +337,10 @@ class InferWSI(Config):
                 mini_cent_list = []
                 for j in range(len(mini_output)):
                     # Post processing
-                    patch_coords = mini_batch2[j]
+                    patch_coords = mini_batch_coor[j]
                     mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.type_classification, self.nr_types, patch_coords
+                        mini_output[j], self.type_classification, self.nr_types, patch_coords, offset=offset,
+                        scan_resolution=self.scan_resolution[0]
                     )
                     mini_mask_list.extend(mask_list_tmp)
                     mini_type_list.extend(type_list_tmp)
@@ -306,9 +351,10 @@ class InferWSI(Config):
                     cent_list.extend(mini_cent_list)
 
             # Deal with the case when the number of patches is not divisisible by batch size
-            if len(self.sub_patches) != 0:
-                mini_output = self.predictor(self.sub_patches)[0]
-                mini_output = np.split(mini_output, len(self.sub_patches), axis=0)
+            if len(self.patch_coords) != 0:
+                mini_batch = self.load_batch(self.patch_coords)
+                mini_output = self.predictor(mini_batch)[0]
+                mini_output = np.split(mini_output, len(self.patch_coords), axis=0)
                 mini_mask_list = []
                 mini_type_list = []
                 mini_cent_list = []
@@ -316,7 +362,8 @@ class InferWSI(Config):
                     # Post processing
                     patch_coords = self.patch_coords[j]
                     mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.type_classification, self.nr_types, patch_coords
+                        mini_output[j], self.type_classification, self.nr_types, patch_coords, offset=offset,
+                        scan_resolution=self.scan_resolution[0]
                     )
                     mini_mask_list.extend(mask_list_tmp)
                     mini_type_list.extend(type_list_tmp)
@@ -329,10 +376,11 @@ class InferWSI(Config):
             mask_list = None
             type_list = None
             cent_list = None
-        
+
         return mask_list, type_list, cent_list
 
-    ####
+        ####
+
     def process_wsi(self, filename):
         '''
         Process an individual WSI. This function will:
@@ -343,8 +391,6 @@ class InferWSI(Config):
         5) Run inference and return npz for each tile of 
            masks, type predictions and centroid locations
         '''
-       
-        print('Processing', self.basename, end='. ', flush=True)
 
         # Load the OpenSlide WSI object
         self.full_filename = self.inf_wsi_dir + filename
@@ -354,38 +400,52 @@ class InferWSI(Config):
         self.ds_factor = self.level_downsamples[self.proc_level]
         self.ds_factor_tiss = self.level_downsamples[self.tiss_level] / self.level_downsamples[self.proc_level]
 
-        if self.tissue_inf:
-            # Generate tissue mask 
-            ds_img = self.read_region(
-                (0,0), 
-                self.tiss_level, 
-                (self.level_dimensions[self.tiss_level][1], self.level_dimensions[self.tiss_level][0])
-                )
-            self.tissue = proc_utils.get_tissue_mask(ds_img)
+        is_valid_tissue_level = True
+        tissue_level = self.tiss_level
+        if tissue_level < len(self.level_downsamples):  # if given tissue level exist
+            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_level]
+        elif len(self.level_downsamples) > 1:
+            tissue_level = len(self.level_downsamples) - 1  # to avoid tissue segmentation at level 0
+            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_level]
+        else:
+            is_valid_tissue_level = False
 
-        # Coordinate info for tile processing 
+        if self.tissue_inf & is_valid_tissue_level:
+            # Generate tissue mask
+            ds_img = self.read_region(
+                (0, 0),
+                tissue_level,
+                (self.level_dimensions[tissue_level][1], self.level_dimensions[tissue_level][0])
+            )
+
+            # downsampling factor if image is largest dimension of the image is greater than 5000 at given tissue level
+            # to reduce tissue segmentation time
+            proc_scale = 1 / np.ceil(np.max(ds_img.shape) / 5000)
+
+            self.tissue = proc_utils.get_tissue_mask(ds_img, proc_scale)
+
+        # Coordinate info for tile processing
         self.tile_coords()
 
         # Run inference tile by tile - if self.tissue_inf == True, only process tissue regions
 
         # Initialise progress bar
-        bar = progressbar.ProgressBar(maxval=self.nr_tiles_h*self.nr_tiles_w, \
-        widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        bar.start()
+        # bar = progressbar.ProgressBar(maxval=self.nr_tiles_h*self.nr_tiles_w, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+        # bar.start()
         for tile in range(len(self.tile_info)):
-            bar.update(tile+1)
-            sleep(0.1)
+            # bar.update(tile+1)
+            # sleep(0.1)
 
-            self.extract_patches(tile)   
-            
+            self.extract_patches(tile)
+
             mask_list, type_list, cent_list = self.run_inference(tile)
 
             # Only save files where there exists nuclei
             if mask_list is not None:
-                np.savez('%s/%s/%s_%s.npz' % (self.inf_output_dir, self.basename, self.basename, str(tile)), 
-                    mask=mask_list, type=type_list, centroid=cent_list)  
-            
-        bar.finish()      
+                np.savez('%s/%s/%s_%s.npz' % (self.inf_output_dir, self.basename, self.basename, str(tile)),
+                         mask=mask_list, type=type_list, centroid=cent_list)
+
+                # bar.finish()
     ####
 
     def load_model(self):
@@ -421,7 +481,10 @@ class InferWSI(Config):
 
         for filename in self.file_list:
             filename = os.path.basename(filename)
-            self.basename = filename.split('.')[0]
+            self.basename = os.path.splitext(filename)[0]
+            if os.path.isdir(os.path.join(self.inf_output_dir, 'temp', self.basename)):
+                continue
+            os.makedirs(os.path.join(self.inf_output_dir, 'temp', self.basename), exist_ok=True)
             rm_n_mkdir(self.save_dir + '/' + self.basename)
             start_time_total = time.time()
             self.process_wsi(filename)
@@ -433,19 +496,29 @@ class InferWSI(Config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.')
-    parser.add_argument('--mode', help='Use either "roi_seg" or "wsi_coords".')
+    parser.add_argument('--mode', help='Use either "roi" or "wsi".')
     args = parser.parse_args()
         
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    else:
+        args.gpu = '0'
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     n_gpus = len(args.gpu.split(','))
 
+    if (args.mode != 'wsi') & (args.mode != 'roi'):
+        args.mode = 'roi'
+
     # Import libraries for WSI processing
-    if args.mode.split('_')[0] == 'wsi':
+    if args.mode == 'wsi':
         import openslide as ops 
-        import progressbar
-        # import matlab
-        # from matlab import engine
+        # import progressbar
+
+        try:
+            import matlab
+            from matlab import engine
+        except:
+            pass
 
     if args.mode == 'roi':
         infer = InferROI()
