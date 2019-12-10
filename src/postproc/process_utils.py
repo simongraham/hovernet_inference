@@ -111,6 +111,10 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
             cropped_inst_ = inst_tmp[rmin:rmax, cmin:cmax]
             cropped_inst = np.zeros([cropped_inst_.shape[0] + 2, cropped_inst_.shape[1] + 2])
             cropped_inst[1:cropped_inst.shape[0] - 1, 1:cropped_inst.shape[1] - 1] = cropped_inst_
+
+            if scan_resolution > 0.35:  # it means image is scanned at 20X
+                cropped_inst = cv2.resize(cropped_inst, dsize=(int(cropped_inst.shape[1]/2), int(cropped_inst.shape[0]/2)), interpolation=cv2.INTER_NEAREST)
+
             cropped_inst = cropped_inst.astype('bool')
             mask_list_out.append(cropped_inst)
 
@@ -120,6 +124,7 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
             centroid += offset  # offset due to the difference between image and mask size
             if scan_resolution > 0.35:  # it means image is scanned at 20X
                 centroid /= 2
+
             centroid += patch_coords
             cent_list_out.append(centroid)
             summary_prob_tmp = []
