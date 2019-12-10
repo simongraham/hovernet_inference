@@ -22,11 +22,12 @@ import time
 from time import sleep
 
 ####
+
 def time_it(start_time, end_time):
     diff = end_time - start_time
     return str(round(diff))
-
 ####
+
 class InferROI(Config):
 
     def __gen_prediction(self, x, predictor):
@@ -121,11 +122,11 @@ class InferROI(Config):
             basename = os.path.splitext(filename)[0]
             print(self.inf_data_dir, basename, end=' ', flush=True)
 
-            ##
+            ###
             img = cv2.imread(self.inf_data_dir + filename)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            ##
+            ###
             pred_map = self.__gen_prediction(img, predictor)
 
             pred_inst, pred_type = proc_utils.process_instance(pred_map, type_classification=True, nr_types=self.nr_types)
@@ -283,7 +284,6 @@ class InferWSI(Config):
                     # self.sub_patches.append(win)
                     self.patch_coords.append([row, col])
                 idx += 1
-
     ####
 
     def load_batch(self, batch_coor):
@@ -299,7 +299,6 @@ class InferWSI(Config):
                 win = cv2.resize(win, (win.shape[1]*2, win.shape[0]*2), cv2.INTER_LINEAR) # cv.INTER_LINEAR is good for zooming
             batch.append(win)
         return batch
-
     ####
 
     def run_inference(self, tile):
@@ -378,7 +377,6 @@ class InferWSI(Config):
             cent_list = None
 
         return mask_list, type_list, cent_list
-
         ####
 
     def process_wsi(self, filename):
