@@ -19,7 +19,7 @@ If you require the model to be trained, refer to the [original repository](https
 ## Running the code
 
 Before running the code:
-+ [Download HoVer-Net weights](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing)
++ [Download](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing) HoVer-Net weights
 + In `config.py`, set: <br />
 `self.inf_model_path`: location of `hovernet.npz` weights file <br />
 `self.inf_output_dir`: directory where results are saved
@@ -68,7 +68,4 @@ Please note, the Pecan dataset is not currently publicly available and until acc
 
 - [x] ROI segmentation code
 - [x] WSI segmentation code
-- [ ] Fix JP2 processing bug
 - [ ] Give environment instructions
-
-Note, WSI segmentation code currently saves results of individual tiles - need to optimise
