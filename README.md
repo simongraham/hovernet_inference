@@ -12,7 +12,7 @@ If you require the model to be trained, refer to the [original repository](https
 - `model/` contains scripts that define the architecture of the segmentation models
 - `postproc/` contains post processing utils
 - `config.py` is the configuration file. Paths need to be changed accordingly
-- `infer.py` is the mina inference file
+- `infer.py` is the main inference file
 - `JP2Image.m` and `read_region.m` are matlab scripts for processing `.jp2` WSIs
 
 
