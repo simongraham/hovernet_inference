@@ -13,8 +13,7 @@ class Config(object):
         self.model_type = 'np_hv'
 
         self.type_classification = True # whether to predict the nuclear type
-        # ! must use CoNSeP dataset, where nuclear type labels are available
-        self.nr_types = 6  # denotes number of classes for nuclear type classification
+        self.nr_types = 6  # denotes number of classes (including BG) for nuclear type classification
         self.nr_classes = 2 # Nuclei Pixels vs Background
 
         self.infer_input_shape = [256, 256]
