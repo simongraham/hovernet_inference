@@ -19,7 +19,7 @@ If you require the model to be trained, refer to the [original repository](https
 ## Running the code
 
 Before running the code:
-+ [Download](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing) HoVer-Net weights
++ [Download](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing) HoVer-Net weights [![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
 + In `config.py`, set: <br />
 `self.inf_model_path`: location of `hovernet.npz` weights file <br />
 `self.inf_output_dir`: directory where results are saved
@@ -56,6 +56,17 @@ BibTex entry: <br />
   year={2019},
   publisher={Elsevier}
 }
+
+@inproceedings{gamper2019pannuke,
+  title={PanNuke: an open pan-cancer histology dataset for nuclei instance segmentation and classification},
+  author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Benet, Ksenija and Khuram, Ali and Rajpoot, Nasir},
+  booktitle={European Congress on Digital Pathology},
+  pages={11--19},
+  year={2019},
+  organization={Springer}
+}
+
+!NOTE: Third citation to be added PECAN (under review at CVPR)
 ```
 
 ## Extra Information
@@ -69,3 +80,10 @@ Please note, the Pecan dataset is not currently publicly available and until acc
 - [x] ROI segmentation code
 - [x] WSI segmentation code
 - [ ] Give environment instructions
+
+# License
+
+Note that the Pecan dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
+
+
+
