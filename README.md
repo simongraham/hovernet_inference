@@ -65,25 +65,25 @@ BibTex entry: <br />
   year={2019},
   organization={Springer}
 }
-
-!NOTE: Third citation to be added PECAN (under review at CVPR)
 ```
+
+## License
+
+Note that the Pecan dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
+
 
 ## Extra Information
 
-The network in this repository was trained on the Pecan dataset (under review at CVPR), where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper. This speeds up inference, which is especially important for WSI processing.
+The network in this repository was trained on the Pecan dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper. This speeds up inference, which is especially important for WSI processing.
 
-Please note, the Pecan dataset is not currently publicly available and until acceptance of the paper, the model weights trained on this dataset must be only circulated within the lab. 
+Please note, the Pecan dataset is not currently publicly available and until acceptance of the paper, the model weights trained on this dataset must be only **circulated within the lab**. 
 
 ## Task list
 
 - [x] ROI segmentation code
 - [x] WSI segmentation code
-- [ ] Give environment instructions
+- [ ] Include requirements file
 
-# License
-
-Note that the Pecan dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
 
 
 
