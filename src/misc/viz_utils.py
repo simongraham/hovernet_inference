@@ -40,8 +40,8 @@ def class_colour(value):
         return (255, 255, 0)
     elif value == 5:
         return (255, 165, 0)
-
 ####
+
 def visualize_instances(mask, type_mask, canvas=None):
     """
     Args:
@@ -58,8 +58,11 @@ def visualize_instances(mask, type_mask, canvas=None):
 
     for idx, inst_id in enumerate(insts_list):
         inst_map = np.array(mask == inst_id, np.uint8)
-        inst_type = inst_map * type_mask
-        inst_type = np.max(np.unique(inst_type))
+        if type_mask is not None
+            inst_type = inst_map * type_mask
+            inst_type = np.max(np.unique(inst_type))
+        else:
+            inst_type = 4 # yellow
         y1, y2, x1, x2  = bounding_box(inst_map)
         y1 = y1 - 2 if y1 - 2 >= 0 else y1 
         x1 = x1 - 2 if x1 - 2 >= 0 else x1 
@@ -71,8 +74,8 @@ def visualize_instances(mask, type_mask, canvas=None):
         cv2.drawContours(inst_canvas_crop, contours[1], -1, class_colour(inst_type), 2)
         canvas[y1:y2, x1:x2] = inst_canvas_crop        
     return canvas
-
 ####
+
 def gen_figure(imgs_list, titles, fig_inch, shape=None,
                 share_ax='all', show=False, colormap=plt.get_cmap('jet')):
 
