@@ -135,7 +135,8 @@ class InferROI(Config):
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
             cv2.imwrite('%s/%s.png' % (save_dir, basename), overlaid_output)
             np.save('%s/%s_inst.npy' % (save_dir, basename), pred_inst)
-            np.save('%s/%s_type.npy' % (save_dir, basename), pred_type)
+            if pred_type is not None:
+                np.save('%s/%s_type.npy' % (save_dir, basename), pred_type)
             print('FINISH')
 ####
 
@@ -224,13 +225,13 @@ class InferWSI(Config):
     ####
 
     def extract_patches(self, tile):
-        """
+        '''
         # TODO Make it parallel processing?!
 
         Extracts patches from the WSI before running inference.
         If tissue mask is provided, only extract foreground patches
         Tile is the tile number index
-        """
+        '''
         step_size = np.array(self.infer_mask_shape)
         msk_size = np.array(self.infer_mask_shape)
         win_size = np.array(self.infer_input_shape)
@@ -266,22 +267,11 @@ class InferWSI(Config):
                                    round(win_size[0] / self.ds_factor_tiss)),
                                int(round(col / self.ds_factor_tiss)):int(round(col / self.ds_factor_tiss)) + int(
                                    round(win_size[1] / self.ds_factor_tiss))]
-                    # tiss_vals = np.unique(win_tiss)
-                    # tiss_vals = tiss_vals.tolist()
-                    # if 1 in tiss_vals:
                     if np.sum(win_tiss) > 0:
-                        # win = self.read_region((int(col * self.ds_factor), int(row * self.ds_factor)),
-                        #                        self.proc_level, (win_size[0], win_size[1]))
-                        # # resize if 20x
-                        # self.sub_patches.append(win)
                         self.patch_coords.append([row, col])
                     else:
                         self.skipped_idx.append(idx)
                 else:
-                    # win = self.read_region((int(col * self.ds_factor), int(row * self.ds_factor)),
-                    #                        self.proc_level, (win_size[0], win_size[1]))
-                    # # resize if 20x
-                    # self.sub_patches.append(win)
                     self.patch_coords.append([row, col])
                 idx += 1
     ####
@@ -322,12 +312,8 @@ class InferWSI(Config):
                 idx + 1, batch_count, tile + 1, self.nr_tiles_h * self.nr_tiles_w))
                 sys.stdout.flush()
                 idx += 1
-                # bar.update(idx)
-                # sleep(0.1)
-                # mini_batch = self.sub_patches[:self.inf_batch_size]
                 mini_batch_coor = self.patch_coords[:self.inf_batch_size]
                 mini_batch = self.load_batch(mini_batch_coor)
-                # self.sub_patches = self.sub_patches[self.inf_batch_size:]
                 self.patch_coords = self.patch_coords[self.inf_batch_size:]
                 mini_output = self.predictor(mini_batch)[0]
                 mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
@@ -389,7 +375,6 @@ class InferWSI(Config):
         5) Run inference and return npz for each tile of 
            masks, type predictions and centroid locations
         '''
-
         # Load the OpenSlide WSI object
         self.full_filename = self.inf_wsi_dir + filename
         print(self.full_filename)
@@ -426,13 +411,7 @@ class InferWSI(Config):
         self.tile_coords()
 
         # Run inference tile by tile - if self.tissue_inf == True, only process tissue regions
-
-        # Initialise progress bar
-        # bar = progressbar.ProgressBar(maxval=self.nr_tiles_h*self.nr_tiles_w, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        # bar.start()
         for tile in range(len(self.tile_info)):
-            # bar.update(tile+1)
-            # sleep(0.1)
 
             self.extract_patches(tile)
 
@@ -467,7 +446,6 @@ class InferWSI(Config):
         '''
         self.file_list = glob.glob('%s/*%s' % (self.inf_wsi_dir, self.inf_wsi_ext))
         self.file_list.sort() # ensure same order
-        #self.file_list = self.file_list[270:360]
 ####
     
     def process_all_wsi(self):
@@ -475,7 +453,6 @@ class InferWSI(Config):
         Process each WSI one at a time and save results as npz file
         '''
         self.save_dir = self.inf_output_dir
-        #rm_n_mkdir(self.save_dir) 
 
         for filename in self.file_list:
             filename = os.path.basename(filename)
@@ -489,7 +466,6 @@ class InferWSI(Config):
             end_time_total = time.time()
             print('FINISHED. Time: ', time_it(start_time_total, end_time_total), 'secs')
         
-
 ####
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -510,7 +486,6 @@ if __name__ == '__main__':
     # Import libraries for WSI processing
     if args.mode == 'wsi':
         import openslide as ops 
-        # import progressbar
 
         try:
             import matlab
