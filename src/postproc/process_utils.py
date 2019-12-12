@@ -60,10 +60,12 @@ def process_instance(pred_map, type_classification, nr_types, remap_label=False,
                 if len(type_list) > 1:
                     inst_type = type_list[1][0]
             pred_type_out += (inst_tmp * inst_type)
-    
-    pred_inst = pred_inst.astype(output_dtype)
-    pred_type_out = pred_type_out.astype(output_dtype)
+        pred_type_out = pred_type_out.astype(output_dtype)
+    else:
+        pred_type_out = None
 
+    pred_inst = pred_inst.astype(output_dtype)
+    
     return pred_inst, pred_type_out
 ####
 
@@ -95,40 +97,41 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
     if remap_label:
         pred_inst = remap_label(pred_inst, by_size=True)
 
-    if type_classification:
-        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])
-        #### * Get class of each instance id, stored at index id-1
-        pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
-        pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
+    
+    pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])
+    #### * Get class of each instance id, stored at index id-1
+    pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
+    pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
 
-        for idx, inst_id in enumerate(pred_id_list):
-            inst_tmp = pred_inst == inst_id
+    for idx, inst_id in enumerate(pred_id_list):
+        inst_tmp = pred_inst == inst_id
 
-            inst_tmp = inst_tmp.astype('uint8')
+        inst_tmp = inst_tmp.astype('uint8')
 
-            # get the cropped mask
-            [rmin, rmax, cmin, cmax] = bounding_box(inst_tmp)
-            cropped_inst_ = inst_tmp[rmin:rmax, cmin:cmax]
-            cropped_inst = np.zeros([cropped_inst_.shape[0] + 2, cropped_inst_.shape[1] + 2])
-            cropped_inst[1:cropped_inst.shape[0] - 1, 1:cropped_inst.shape[1] - 1] = cropped_inst_
+        # get the cropped mask
+        [rmin, rmax, cmin, cmax] = bounding_box(inst_tmp)
+        cropped_inst_ = inst_tmp[rmin:rmax, cmin:cmax]
+        cropped_inst = np.zeros([cropped_inst_.shape[0] + 2, cropped_inst_.shape[1] + 2])
+        cropped_inst[1:cropped_inst.shape[0] - 1, 1:cropped_inst.shape[1] - 1] = cropped_inst_
 
-            if scan_resolution > 0.35:  # it means image is scanned at 20X
-                cropped_inst = cv2.resize(cropped_inst, dsize=(int(cropped_inst.shape[1]/2), int(cropped_inst.shape[0]/2)), interpolation=cv2.INTER_NEAREST)
+        if scan_resolution > 0.35:  # it means image is scanned at 20X
+            cropped_inst = cv2.resize(cropped_inst, dsize=(int(cropped_inst.shape[1]/2), int(cropped_inst.shape[0]/2)), interpolation=cv2.INTER_NEAREST)
 
-            cropped_inst = cropped_inst.astype('bool')
-            mask_list_out.append(cropped_inst)
+        cropped_inst = cropped_inst.astype('bool')
+        mask_list_out.append(cropped_inst)
 
-            # get the centroid
-            regions = regionprops(inst_tmp)
-            centroid = np.array(regions[0].centroid)
-            centroid += offset  # offset due to the difference between image and mask size
-            if scan_resolution > 0.35:  # it means image is scanned at 20X
-                centroid /= 2
+        # get the centroid
+        regions = regionprops(inst_tmp)
+        centroid = np.array(regions[0].centroid)
+        centroid += offset  # offset due to the difference between image and mask size
+        if scan_resolution > 0.35:  # it means image is scanned at 20X
+            centroid /= 2
 
-            centroid += patch_coords
-            cent_list_out.append(centroid)
-            summary_prob_tmp = []
+        centroid += patch_coords
+        cent_list_out.append(centroid)
+        summary_prob_tmp = []
 
+        if type_classification:
             # get the type
             inst_type = pred_type[pred_inst == inst_id]
             type_list, type_pixels = np.unique(inst_type, return_counts=True)
