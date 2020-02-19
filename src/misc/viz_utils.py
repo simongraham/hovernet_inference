@@ -58,7 +58,7 @@ def visualize_instances(mask, type_mask, canvas=None):
 
     for idx, inst_id in enumerate(insts_list):
         inst_map = np.array(mask == inst_id, np.uint8)
-        if type_mask is not None
+        if type_mask is not None:
             inst_type = inst_map * type_mask
             inst_type = np.max(np.unique(inst_type))
         else:
