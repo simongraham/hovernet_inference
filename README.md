@@ -65,6 +65,13 @@ BibTex entry: <br />
   year={2019},
   organization={Springer}
 }
+
+@article{gamper2020pannuke,
+  title={PanNuke Dataset Extension, Insights and Baselines},
+  author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Graham, Simon and Jahanifar, Mostafa and Benet, Ksenija and Khurram, Syed Ali and Azam, Ayesha and Hewitt, Katherine and Rajpoot, Nasir},
+  journal={arXiv preprint arXiv:2003.10778},
+  year={2020}
+}
 ```
 
 ## License
