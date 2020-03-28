@@ -81,7 +81,7 @@ Note that the PanNuke dataset is licensed under [Attribution-NonCommercial-Share
 
 ## Extra Information
 
-The network in this repository was trained on the Pecan dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper. This speeds up inference, which is especially important for WSI processing.
+The network in this repository was trained on the PanNuke dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper. This speeds up inference, which is especially important for WSI processing.
 
 Please note, the Pecan dataset is not currently publicly available and until acceptance of the paper, the model weights trained on this dataset must be only **circulated within the lab**. 
 
