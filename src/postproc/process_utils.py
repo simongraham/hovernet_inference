@@ -1,18 +1,11 @@
 import cv2
 import numpy as np
-import glob
-import os
-import scipy.io as sio
-from scipy.ndimage import measurements
-from scipy.ndimage.morphology import (binary_dilation, binary_erosion,
-                                      binary_fill_holes, binary_closing)
+from scipy.ndimage.morphology import (binary_dilation, binary_erosion, binary_closing)
 
 import skimage
 from skimage.morphology import remove_small_objects, remove_small_holes, disk
 from skimage.filters import rank, threshold_otsu
-from skimage.transform import resize
 from scipy import ndimage
-import matplotlib.pyplot as plt
 
 from config import Config
 import postproc.hover
