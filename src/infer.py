@@ -7,8 +7,6 @@ from collections import deque
 
 import cv2
 import numpy as np
-from scipy import io as sio
-import matplotlib.pyplot as plt 
 
 from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
@@ -19,7 +17,6 @@ from misc.viz_utils import visualize_instances
 import postproc.process_utils as proc_utils
 
 import time
-from time import sleep
 
 ####
 
