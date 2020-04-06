@@ -85,12 +85,6 @@ The network in this repository was trained on the PanNuke dataset, where images 
 
 Please note, the Pecan dataset is not currently publicly available and until acceptance of the paper, the model weights trained on this dataset must be only **circulated within the lab**. 
 
-## Task list
-
-- [x] ROI segmentation code
-- [x] WSI segmentation code
-- [ ] Include requirements file
-
 
 
 
