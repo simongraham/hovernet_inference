@@ -118,7 +118,7 @@ class InferROI(Config):
             filename = os.path.basename(filename)
             basename = os.path.splitext(filename)[0]
             print(self.inf_data_dir, basename, end=' ', flush=True)
-
+            print(filename)
             ###
             img = cv2.imread(self.inf_data_dir + filename)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
