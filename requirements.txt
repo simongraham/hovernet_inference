@@ -1,28 +1,6 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-scipy==1.4.1
-scikit-image==0.15.0
-numpy==1.17.2
-matplotlib==3.1.1
-matlab==0.1
-tensorflow-gpu==1.12
-tensorpack==0.10
-opencv-python
-=======
-python==3.6
-tensorflow==1.12
-tensorpack==0.9.0.1
-opencv==3.2
-skimage==0.0
-scikit-imagw==0.14.2
-matplotlib===3.0.2
-numpy==1.15.4
->>>>>>> 104068af7c734c7f8446d4141b9a0d04899ba6c1
-=======
 tensorflow-gpu==1.12
 tensorpack==0.9.0.1
 scikit-image==0.14.2
 matplotlib===3.0.2
 numpy==1.15.4
 opencv-python
->>>>>>> test_requirements
