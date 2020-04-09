@@ -92,3 +92,11 @@ Download the PanNuke dataset [here](https://warwick.ac.uk/fac/sci/dcs/research/t
 ## License
 
 Note that the PanNuke dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
+
+## Contributors
+
+Simon Graham [Twitter](https://twitter.com/simongraham73?ref_src=twsrc%5Etfw) | [Webpage](https://warwick.ac.uk/fac/sci/mathsys/people/students/2015intake/graham/) | [Google Scholar](https://scholar.google.com/citations?user=KMkGt1YAAAAJ&hl=en)
+
+Jevgenij Gamper [Twitter](https://twitter.com/brutforcimag?ref_src=twsrc%5Etfw) | [Webpage](https://bruteforceimagination.com) | [Google Scholar](https://scholar.google.com/citations?user=5jqljH0AAAAJ&hl=en)
+
+Mohammad Shaban [Webpage](https://warwick.ac.uk/fac/sci/dcs/people/research/u1665958/) | [Google Scholar](https://scholar.google.com.pk/citations?user=8-nvcSQAAAAJ&hl=en)
