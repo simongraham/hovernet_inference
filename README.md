@@ -15,6 +15,14 @@ If you require the model to be trained, refer to the [original repository](https
 - `infer.py` is the main inference file
 - `JP2Image.m` and `read_region.m` are matlab scripts for processing `.jp2` WSIs
 
+## Set up envrionment
+
+```
+conda create --name hovernet python=3.6
+conda activate hovernet
+pip install -r requirements.txt
+```
+
 ## Running the code
 
 Before running the code:
