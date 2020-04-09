@@ -11,6 +11,15 @@ import numpy as np
 from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 
+# disable logging info 
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning) # disable warnings on deprecated features
+from tensorflow import logging
+logging.set_verbosity(logging.ERROR) # only show errors
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+from tensorpack import logger
+logger._getlogger().disabled = True # disable log handler
+
 from config import Config
 from misc.utils import rm_n_mkdir
 from misc.viz_utils import visualize_instances
@@ -128,7 +137,7 @@ class InferROI(Config):
             filename = os.path.basename(filename)
             basename = os.path.splitext(filename)[0]
             print(self.inf_data_dir, basename, end=' ', flush=True)
-
+            print(filename)
             ###
             img = cv2.imread(self.inf_data_dir + filename)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

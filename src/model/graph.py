@@ -1,9 +1,5 @@
-
 import tensorflow as tf
-
-from tensorpack import *
 from tensorpack.models import BatchNorm, BNReLU, Conv2D, MaxPooling, FixedUnPooling
-
 from .utils import *
 
 import sys
