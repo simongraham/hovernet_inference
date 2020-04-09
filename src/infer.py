@@ -27,16 +27,6 @@ import postproc.process_utils as proc_utils
 
 import time
 
-# disable logging info
-import warnings
-# warnings.filterwarnings('ignore',category=FutureWarning)
-from tensorflow import logging
-logging.set_verbosity('WARNING')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
-
-from tensorpack import logger
-logger._getlogger().disabled = True
-
 ####
 
 def time_it(start_time, end_time):
