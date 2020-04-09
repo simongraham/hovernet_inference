@@ -11,6 +11,15 @@ import numpy as np
 from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 
+# disable logging info 
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning) # disable warnings on deprecated features
+from tensorflow import logging
+logging.set_verbosity(logging.ERROR) # only show errors
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+from tensorpack import logger
+logger._getlogger().disabled = True # disable log handler
+
 from config import Config
 from misc.utils import rm_n_mkdir
 from misc.viz_utils import visualize_instances
