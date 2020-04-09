@@ -24,7 +24,7 @@ class Config(object):
         self.input_norm  = True # normalize RGB to 0-1 range
 
         #### Info for running inference
-        self.inf_model_path  = '/path_to_weights/hovernet.npz'
+        self.inf_model_path  = '/home/jevjev/hovernet.npz'
 
         # WSI processing
         self.tissue_inf = True
@@ -37,9 +37,9 @@ class Config(object):
 
         # ROI processing
         self.inf_imgs_ext = '.png'
-        self.inf_data_dir = '/path_to_rois/'
+        self.inf_data_dir = '/home/jevjev/test_roi/'
 
-        self.inf_output_dir = '/path_to_output/'
+        self.inf_output_dir = '/home/jevjev/roi_output/'
 
         # for inference during evalutaion mode i.e run by infer.py
         self.eval_inf_input_tensor_names = ['images']
