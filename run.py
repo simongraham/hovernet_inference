@@ -1,8 +1,32 @@
-import argparse
+"""run.
+
+Usage:
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
+  run.py (-h | --help)
+  run.py --version
+
+Options:
+  -h --help            Show this string.
+  --version            Show version.
+  --gpu=<id>           GPU list. [default: 2]
+  --mode=<mode>        Inference mode. 'roi' or 'wsi'. [default: roi]
+  --model=<path>       Path to saved checkpoint.
+  --input_dir=<path>   Directory containing input images/WSIs.
+  --output_dir=<path>  Directory where the output will be saved. [default: output/]
+  --batch_size=<n>     Batch size. [default: 25]
+  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
+  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
+  --tiss_seg           Whether to only process tissue area.
+  --tiss_lvl=<n>       Level of WSI pyramid for tissue segmentation. [default: 3]
+"""
+
+
+from docopt import docopt
 import glob
 import math
 import os
 import sys
+import importlib
 from collections import deque
 
 import cv2
@@ -11,42 +35,64 @@ import numpy as np
 from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 
-# disable logging info 
-import warnings
-warnings.filterwarnings('ignore',category=FutureWarning) # disable warnings on deprecated features
-from tensorflow import logging
-logging.set_verbosity(logging.ERROR) # only show errors
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from tensorpack import logger
-logger._getlogger().disabled = True # disable log handler
+logger._getlogger().disabled = True # disable logging of network info
 
-from config import Config
-from misc.utils import rm_n_mkdir
-from misc.viz_utils import visualize_instances
-import postproc.process_utils as proc_utils
+from hover.misc.utils import rm_n_mkdir
+from hover.misc.viz_utils import visualize_instances
+import hover.postproc.process_utils as proc_utils
 
 import time
 
 ####
-
 def time_it(start_time, end_time):
+    '''
+    Helper function to compute run time
+    '''
     diff = end_time - start_time
     return str(round(diff))
 ####
 
-class InferROI(Config):
+class InferROI(object):
+    def __init__(self,):
+        self.nr_types = 6  # denotes number of classes (including BG) for nuclear type classification
+        self.input_shape = [256, 256]
+        self.mask_shape = [164, 164] 
+        self.input_norm  = True # normalize RGB to 0-1 range
+
+        # for inference during evalutation mode i.e run by infer.py
+        self.input_tensor_names = ['images']
+        self.output_tensor_names = ['predmap-coded']
+
+    def load_params(self, args):
+        '''
+        Load arguments
+        '''
+        # Paths
+        self.model_path  = args['--model']
+        self.input_dir = args['--input_dir']
+        self.output_dir = args['--output_dir']
+
+        # Processing
+        self.batch_size = int(args['--batch_size'])
+    
+    def get_model(self):
+        model_constructor = importlib.import_module('hover.model.graph')
+        model_constructor = model_constructor.Model_NP_HV  
+        return model_constructor # NOTE return alias, not object
 
     def __gen_prediction(self, x, predictor):
         """
         Using 'predictor' to generate the prediction of image 'x'
 
         Args:
-            x : input image to be segmented. It will be split into patches
-                to run the prediction upon before being assembled back            
+            x        : input image to be segmented. It will be split into patches
+                       to run the prediction upon before being assembled back 
+            predictor: A predictor built from a given config.           
         """    
-        step_size = self.infer_mask_shape
-        msk_size = self.infer_mask_shape
-        win_size = self.infer_input_shape
+        step_size = self.mask_shape
+        msk_size = self.mask_shape
+        win_size = self.input_shape
 
         def get_last_steps(length, msk_size, step_size):
             nr_step = math.ceil((length - msk_size) / step_size)
@@ -79,11 +125,11 @@ class InferROI(Config):
                 sub_patches.append(win)
 
         pred_map = deque()
-        while len(sub_patches) > self.inf_batch_size:
-            mini_batch  = sub_patches[:self.inf_batch_size]
-            sub_patches = sub_patches[self.inf_batch_size:]
+        while len(sub_patches) > self.batch_size:
+            mini_batch  = sub_patches[:self.batch_size]
+            sub_patches = sub_patches[self.batch_size:]
             mini_output = predictor(mini_batch)[0]
-            mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
+            mini_output = np.split(mini_output, self.batch_size, axis=0)
             pred_map.extend(mini_output)
         if len(sub_patches) != 0:
             mini_output = predictor(sub_patches)[0]
@@ -106,53 +152,97 @@ class InferROI(Config):
         return pred_map
 
     ####
-    def run(self):
-
-        model_path = self.inf_model_path
-
+    def load_model(self):
+        print('Loading Model...')
+        model_path = self.model_path
         model_constructor = self.get_model()
         pred_config = PredictConfig(
-            model        = model_constructor(),
+            model        = model_constructor(self.nr_types, self.input_shape, self.mask_shape, self.input_norm),
             session_init = get_model_loader(model_path),
-            input_names  = self.eval_inf_input_tensor_names,
-            output_names = self.eval_inf_output_tensor_names)
-        predictor = OfflinePredictor(pred_config)
+            input_names  = self.input_tensor_names,
+            output_names = self.output_tensor_names)
+        self.predictor = OfflinePredictor(pred_config)
 
-        save_dir = self.inf_output_dir
-        file_list = glob.glob('%s/*%s' % (self.inf_data_dir, self.inf_imgs_ext))
+    def process(self):
+        '''
+        Process image files within a directory.
+        For each image, the function will:
+        1) Load the image
+        2) Extract patches the entire image
+        3) Run inference
+        4) Return output numpy file and overlay
+        '''
+        save_dir = self.output_dir
+        file_list = glob.glob('%s/*' %self.input_dir)
         file_list.sort() # ensure same order
 
         rm_n_mkdir(save_dir)       
         for filename in file_list:
             filename = os.path.basename(filename)
             basename = os.path.splitext(filename)[0]
-            print(self.inf_data_dir, basename, end=' ', flush=True)
+            print(self.input_dir, basename, end=' ', flush=True)
             print(filename)
+
             ###
-            img = cv2.imread(self.inf_data_dir + filename)
+            img = cv2.imread(self.input_dir + '/' + filename)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             ###
-            pred_map = self.__gen_prediction(img, predictor)
+            pred_map = self.__gen_prediction(img, self.predictor)
 
-            pred_inst, pred_type = proc_utils.process_instance(pred_map, type_classification=True, nr_types=self.nr_types)
-
+            pred_inst, pred_type = proc_utils.process_instance(pred_map, nr_types=self.nr_types)
+            
             overlaid_output = visualize_instances(pred_inst, pred_type, img)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+
+            # combine instance and type arrays for saving
+            pred_inst = np.expand_dims(pred_inst, -1)
+            pred_type = np.expand_dims(pred_type, -1)
+            pred = np.dstack([pred_inst, pred_type])
+
             cv2.imwrite('%s/%s.png' % (save_dir, basename), overlaid_output)
-            np.save('%s/%s_inst.npy' % (save_dir, basename), pred_inst)
-            if pred_type is not None:
-                np.save('%s/%s_type.npy' % (save_dir, basename), pred_type)
-            print('FINISH')
+            np.save('%s/%s.npy' % (save_dir, basename), pred)
 ####
 
-class InferWSI(Config):
+class InferWSI(object):
+    def __init__(self,):
+        self.nr_types = 6  # denotes number of classes (including BG) for nuclear type classification
+        self.input_shape = [256, 256]
+        self.mask_shape = [164, 164] 
+        self.input_norm  = True # normalize RGB to 0-1 range
+        self.proc_lvl   = 0
 
-    def read_region(self, location, level, patch_size):
+        # for inference during evalutation mode i.e run by infer.py
+        self.input_tensor_names = ['images']
+        self.output_tensor_names = ['predmap-coded']
+
+    def load_params(self, args):
+        '''
+        Load arguments
+        '''
+        # Paths
+        self.model_path  = args['--model']
+        self.input_dir = args['--input_dir']
+        self.output_dir = args['--output_dir']
+
+        # Processing
+        self.batch_size = int(args['--batch_size'])
+        # Below specific to WSI processing
+        self.tiss_seg  = args['--tiss_seg']
+        self.tiss_lvl   = int(args['--tiss_lvl'])
+        self.nr_tiles_h = int(args['--tiles_h'])
+        self.nr_tiles_w = int(args['--tiles_w'])
+    
+    def get_model(self):
+        model_constructor = importlib.import_module('hover.model.graph')
+        model_constructor = model_constructor.Model_NP_HV  
+        return model_constructor # NOTE return alias, not object
+
+    def read_region(self, location, level, patch_size, wsi_ext):
         '''
         Loads a patch from an OpenSlide object
         '''
-        if self.inf_wsi_ext == '.jp2':
+        if wsi_ext == '.jp2':
             y1 = int(location[1] / pow(2, level)) + 1
             x1 = int(location[0] / pow(2, level)) + 1
             y2 = int(y1 + patch_size[1] -1)
@@ -166,12 +256,15 @@ class InferWSI(Config):
             patch = cv2.merge([r, g, b])
         return patch
     
-    def load_wsi(self):
+    def load_wsi(self, wsi_ext):
         '''
         Load WSI using OpenSlide. Note, if using JP2, appropriate
         matlab scripts need to be placed in the working directory
+
+        Args:
+        wsi_ext: file extension of the whole-slide image
         '''
-        if self.inf_wsi_ext == '.jp2':
+        if wsi_ext == '.jp2':
             try:
                 self.wsiObj = engine.start_matlab()
             except:
@@ -202,9 +295,8 @@ class InferWSI(Config):
         '''
         Get the tile coordinates and dimensions for processing at level 0
         '''
-
-        self.im_w = self.level_dimensions[self.proc_level][1]
-        self.im_h = self.level_dimensions[self.proc_level][0]
+        self.im_w = self.level_dimensions[self.proc_lvl][1]
+        self.im_h = self.level_dimensions[self.proc_lvl][0]
 
         if self.nr_tiles_h > 0:
             step_h = math.floor(self.im_h / self.nr_tiles_h)
@@ -233,14 +325,15 @@ class InferWSI(Config):
     def extract_patches(self, tile):
         '''
         # TODO Make it parallel processing?!
-
         Extracts patches from the WSI before running inference.
-        If tissue mask is provided, only extract foreground patches
-        Tile is the tile number index
+        If tissue mask is provided, only extract foreground patches.
+
+        Args:
+        tile: tile number index
         '''
-        step_size = np.array(self.infer_mask_shape)
-        msk_size = np.array(self.infer_mask_shape)
-        win_size = np.array(self.infer_input_shape)
+        step_size = np.array(self.mask_shape)
+        msk_size = np.array(self.mask_shape)
+        win_size = np.array(self.input_shape)
         if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
             step_size = np.int64(step_size / 2)
             msk_size = np.int64(msk_size / 2)
@@ -267,7 +360,7 @@ class InferWSI(Config):
         idx = 0
         for row in range(start_h, last_h, step_size[0]):
             for col in range(start_w, last_w, step_size[1]):
-                if self.tissue is not None:
+                if self.tiss_seg is True:
                     win_tiss = self.tissue[
                                int(round(row / self.ds_factor_tiss)):int(round(row / self.ds_factor_tiss)) + int(
                                    round(win_size[0] / self.ds_factor_tiss)),
@@ -282,47 +375,57 @@ class InferWSI(Config):
                 idx += 1
     ####
 
-    def load_batch(self, batch_coor):
+    def load_batch(self, batch_coor, wsi_ext):
+        '''
+        Loads a batch of images from provided coordinates.
+
+        Args:
+        batch_coor: list of coordinates in a batch
+        wsi_ext   : file extension of the whole-slide image
+        '''
         batch = []
-        win_size = self.infer_input_shape
+        win_size = self.input_shape
         if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
-            win_size = np.int64(np.array(self.infer_input_shape)/2)
+            win_size = np.int64(np.array(self.input_shape)/2)
 
         for coor in batch_coor:
             win = self.read_region((int(coor[1] * self.ds_factor), int(coor[0] * self.ds_factor)),
-                                   self.proc_level, (win_size[0], win_size[1]))
+                                   self.proc_lvl, (win_size[0], win_size[1]), wsi_ext)
             if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
                 win = cv2.resize(win, (win.shape[1]*2, win.shape[0]*2), cv2.INTER_LINEAR) # cv.INTER_LINEAR is good for zooming
             batch.append(win)
         return batch
     ####
 
-    def run_inference(self, tile):
+    def run_inference(self, tile, wsi_ext):
         '''
         Run inference for extracted patches and apply post processing.
         Results are then assembled to the size of the original image.
+        
+        Args:
+        tile: tile number index
+        wsi_ext: file extension of the whole-slide image
         '''
 
         pred_map = deque()
         mask_list = []
         type_list = []
         cent_list = []
-        offset = (self.infer_input_shape[0] - self.infer_mask_shape[0]) / 2
+        offset = (self.input_shape[0] - self.mask_shape[0]) / 2
         idx = 0
-        batch_count = np.floor(len(self.patch_coords) / self.inf_batch_size)
+        batch_count = np.floor(len(self.patch_coords) / self.batch_size)
 
         if len(self.patch_coords) > 0:
-            while len(self.patch_coords) > self.inf_batch_size:
-                # print('Batch(%d/%d) of Tile(%d/%d)' % (idx+1, batch_count, tile+1, self.nr_tiles_h*self.nr_tiles_w ))
+            while len(self.patch_coords) > self.batch_size:
                 sys.stdout.write("\rBatch(%d/%d) of Tile(%d/%d)" % (
                 idx + 1, batch_count, tile + 1, self.nr_tiles_h * self.nr_tiles_w))
                 sys.stdout.flush()
                 idx += 1
-                mini_batch_coor = self.patch_coords[:self.inf_batch_size]
-                mini_batch = self.load_batch(mini_batch_coor)
-                self.patch_coords = self.patch_coords[self.inf_batch_size:]
+                mini_batch_coor = self.patch_coords[:self.batch_size]
+                mini_batch = self.load_batch(mini_batch_coor, wsi_ext)
+                self.patch_coords = self.patch_coords[self.batch_size:]
                 mini_output = self.predictor(mini_batch)[0]
-                mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
+                mini_output = np.split(mini_output, self.batch_size, axis=0)
                 mini_mask_list = []
                 mini_type_list = []
                 mini_cent_list = []
@@ -330,7 +433,7 @@ class InferWSI(Config):
                     # Post processing
                     patch_coords = mini_batch_coor[j]
                     mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.type_classification, self.nr_types, patch_coords, offset=offset,
+                        mini_output[j], self.nr_types, patch_coords, offset=offset,
                         scan_resolution=self.scan_resolution[0]
                     )
                     mini_mask_list.extend(mask_list_tmp)
@@ -343,7 +446,7 @@ class InferWSI(Config):
 
             # Deal with the case when the number of patches is not divisisible by batch size
             if len(self.patch_coords) != 0:
-                mini_batch = self.load_batch(self.patch_coords)
+                mini_batch = self.load_batch(self.patch_coords, wsi_ext)
                 mini_output = self.predictor(mini_batch)[0]
                 mini_output = np.split(mini_output, len(self.patch_coords), axis=0)
                 mini_mask_list = []
@@ -353,7 +456,7 @@ class InferWSI(Config):
                     # Post processing
                     patch_coords = self.patch_coords[j]
                     mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.type_classification, self.nr_types, patch_coords, offset=offset,
+                        mini_output[j], self.nr_types, patch_coords, offset=offset,
                         scan_resolution=self.scan_resolution[0]
                     )
                     mini_mask_list.extend(mask_list_tmp)
@@ -382,29 +485,30 @@ class InferWSI(Config):
            masks, type predictions and centroid locations
         '''
         # Load the OpenSlide WSI object
-        self.full_filename = self.inf_wsi_dir + filename
+        self.full_filename = self.input_dir + '/' + filename
+        wsi_ext = self.full_filename.split('.')[-1]
         print(self.full_filename)
-        self.load_wsi()
+        self.load_wsi(wsi_ext)
 
-        self.ds_factor = self.level_downsamples[self.proc_level]
-        self.ds_factor_tiss = self.level_downsamples[self.tiss_level] / self.level_downsamples[self.proc_level]
+        self.ds_factor = self.level_downsamples[self.proc_lvl]
 
         is_valid_tissue_level = True
-        tissue_level = self.tiss_level
+        tissue_level = self.tiss_lvl
         if tissue_level < len(self.level_downsamples):  # if given tissue level exist
-            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_level]
+            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_lvl]
         elif len(self.level_downsamples) > 1:
             tissue_level = len(self.level_downsamples) - 1  # to avoid tissue segmentation at level 0
-            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_level]
+            self.ds_factor_tiss = self.level_downsamples[tissue_level] / self.level_downsamples[self.proc_lvl]
         else:
             is_valid_tissue_level = False
 
-        if self.tissue_inf & is_valid_tissue_level:
+        if self.tiss_seg & is_valid_tissue_level:
             # Generate tissue mask
             ds_img = self.read_region(
                 (0, 0),
                 tissue_level,
-                (self.level_dimensions[tissue_level][1], self.level_dimensions[tissue_level][0])
+                (self.level_dimensions[tissue_level][1], self.level_dimensions[tissue_level][0]),
+                wsi_ext
             )
 
             # downsampling factor if image is largest dimension of the image is greater than 5000 at given tissue level
@@ -416,16 +520,16 @@ class InferWSI(Config):
         # Coordinate info for tile processing
         self.tile_coords()
 
-        # Run inference tile by tile - if self.tissue_inf == True, only process tissue regions
+        # Run inference tile by tile - if self.tiss_seg == True, only process tissue regions
         for tile in range(len(self.tile_info)):
 
             self.extract_patches(tile)
 
-            mask_list, type_list, cent_list = self.run_inference(tile)
+            mask_list, type_list, cent_list = self.run_inference(tile, wsi_ext)
 
             # Only save files where there exists nuclei
             if mask_list is not None:
-                np.savez('%s/%s/%s_%s.npz' % (self.inf_output_dir, self.basename, self.basename, str(tile)),
+                np.savez('%s/%s/%s_%s.npz' % (self.output_dir, self.basename, self.basename, str(tile)),
                          mask=mask_list, type=type_list, centroid=cent_list)
 
                 # bar.finish()
@@ -435,14 +539,14 @@ class InferWSI(Config):
         '''
         Loads the model and checkpoints according to the model stated in config.py
         '''
-        model_path = self.inf_model_path
-
+        print('Loading Model...')
+        model_path = self.model_path
         model_constructor = self.get_model()
         pred_config = PredictConfig(
-            model        = model_constructor(),
+            model        = model_constructor(self.nr_types, self.input_shape, self.mask_shape, self.input_norm),
             session_init = get_model_loader(model_path),
-            input_names  = self.eval_inf_input_tensor_names,
-            output_names = self.eval_inf_output_tensor_names)
+            input_names  = self.input_tensor_names,
+            output_names = self.output_tensor_names)
         self.predictor = OfflinePredictor(pred_config)
     ####
 
@@ -450,7 +554,7 @@ class InferWSI(Config):
         '''
         Get the list of all WSI files to process
         '''
-        self.file_list = glob.glob('%s/*%s' % (self.inf_wsi_dir, self.inf_wsi_ext))
+        self.file_list = glob.glob('%s/*' %self.input_dir)
         self.file_list.sort() # ensure same order
 ####
     
@@ -458,54 +562,54 @@ class InferWSI(Config):
         '''
         Process each WSI one at a time and save results as npz file
         '''
-        self.save_dir = self.inf_output_dir
+        if os.path.isdir(self.output_dir) == False:
+            rm_n_mkdir(self.output_dir)
 
         for filename in self.file_list:
             filename = os.path.basename(filename)
             self.basename = os.path.splitext(filename)[0]
-            if os.path.isdir(os.path.join(self.inf_output_dir, 'temp', self.basename)):
-                continue
-            os.makedirs(os.path.join(self.inf_output_dir, 'temp', self.basename), exist_ok=True)
-            rm_n_mkdir(self.save_dir + '/' + self.basename)
+            # this will overwrite file is it was processed previously
+            rm_n_mkdir(self.output_dir + '/' + self.basename)
             start_time_total = time.time()
             self.process_wsi(filename)
             end_time_total = time.time()
-            print('FINISHED. Time: ', time_it(start_time_total, end_time_total), 'secs')
+            print('. FINISHED. Time: ', time_it(start_time_total, end_time_total), 'secs')
         
-####
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.')
-    parser.add_argument('--mode', help='Use either "roi" or "wsi".')
-    args = parser.parse_args()
-        
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    else:
-        args.gpu = '0'
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    n_gpus = len(args.gpu.split(','))
 
-    if (args.mode != 'wsi') & (args.mode != 'roi'):
-        args.mode = 'roi'
+#####
+if __name__ == '__main__':
+    args = docopt(__doc__, version='HoVer-Net Inference v1.0')
+    print(args)
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = args['--gpu']
+
+    # Raise exceptions for invalid / missing arguments
+    if args['--model'] == None:
+        raise Exception('A model path must be supplied as an argument with --model.')
+    if args['--mode'] != 'roi' and args['--mode'] != 'wsi':
+        raise Exception('Mode not recognised. Use either "roi" or "wsi"')
+    if args['--input_dir'] == None:
+        raise Exception('An input directory must be supplied as an argument with --input_dir.')
+    if args['--input_dir'] == args['--output_dir']:
+        raise Exception('Input and output directories should not be the same- otherwise input directory will be overwritten.')
 
     # Import libraries for WSI processing
-    if args.mode == 'wsi':
+    if args['--mode'] == 'wsi':
         import openslide as ops 
-
         try:
             import matlab
             from matlab import engine
         except:
             pass
 
-    if args.mode == 'roi':
+    if args['--mode'] == 'roi':
         infer = InferROI()
-        infer.run() 
-    elif args.mode == 'wsi': # currently saves results per tile
+        infer.load_params(args)
+        infer.load_model() 
+        infer.process()
+    elif args['--mode'] == 'wsi': # currently saves results per tile
         infer = InferWSI()
+        infer.load_params(args)
         infer.load_model() 
         infer.load_filenames()
         infer.process_all_wsi() 
-    else:
-        print('Mode not recognised. Use either "roi" or "wsi"')

@@ -7,27 +7,21 @@ from skimage.morphology import remove_small_objects, remove_small_holes, disk
 from skimage.filters import rank, threshold_otsu
 from scipy import ndimage
 
-from config import Config
-import postproc.hover
+import hover.postproc.hover
 from skimage.measure import regionprops
 
-from misc.utils import bounding_box
+from hover.misc.utils import bounding_box
 
 ####
-def process_instance(pred_map, type_classification, nr_types, remap_label=False, output_dtype='uint16'):
+def process_instance(pred_map, nr_types, remap_label=False, output_dtype='uint16'):
     # Post processing
-    cfg = Config()
 
-    if type_classification:
-        pred_inst = pred_map[..., nr_types:]
-        pred_type = pred_map[..., :nr_types]
+    pred_inst = pred_map[..., nr_types:]
+    pred_type = pred_map[..., :nr_types]
 
-        pred_inst = np.squeeze(pred_inst)
-        pred_type = np.argmax(pred_type, axis=-1)
-        pred_type = np.squeeze(pred_type)
-
-    else:
-        pred_inst = pred_map
+    pred_inst = np.squeeze(pred_inst)
+    pred_type = np.argmax(pred_type, axis=-1)
+    pred_type = np.squeeze(pred_type)
 
     pred_inst = postproc.hover.proc_np_hv(pred_inst,
                                             marker_mode=2,
@@ -37,50 +31,42 @@ def process_instance(pred_map, type_classification, nr_types, remap_label=False,
     if remap_label:
         pred_inst = remap_label(pred_inst, by_size=True)
     
-    if type_classification:
-        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
-        #### * Get class of each instance id, stored at index id-1
-        pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
-        pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
-        for idx, inst_id in enumerate(pred_id_list):
-            inst_tmp = pred_inst == inst_id
-            inst_type = pred_type[pred_inst == inst_id]
-            type_list, type_pixels = np.unique(inst_type, return_counts=True)
-            type_list = list(zip(type_list, type_pixels))
-            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
-            inst_type = type_list[0][0]
-            if inst_type == 0: # ! pick the 2nd most dominant if exist
-                if len(type_list) > 1:
-                    inst_type = type_list[1][0]
-            pred_type_out += (inst_tmp * inst_type)
-        pred_type_out = pred_type_out.astype(output_dtype)
-    else:
-        pred_type_out = None
+    pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
+    #### * Get class of each instance id, stored at index id-1
+    pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
+    pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
+    for idx, inst_id in enumerate(pred_id_list):
+        inst_tmp = pred_inst == inst_id
+        inst_type = pred_type[pred_inst == inst_id]
+        type_list, type_pixels = np.unique(inst_type, return_counts=True)
+        type_list = list(zip(type_list, type_pixels))
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+        inst_type = type_list[0][0]
+        if inst_type == 0: # ! pick the 2nd most dominant if exist
+            if len(type_list) > 1:
+                inst_type = type_list[1][0]
+        pred_type_out += (inst_tmp * inst_type)
+    pred_type_out = pred_type_out.astype(output_dtype)
 
     pred_inst = pred_inst.astype(output_dtype)
     
     return pred_inst, pred_type_out
 ####
 
-def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, remap_label=False, offset=0,
+def process_instance_wsi(pred_map, nr_types, patch_coords, remap_label=False, offset=0,
                          scan_resolution=0.25, get_summary=True, output_dtype='uint16'):
     # Post processing
-    cfg = Config()
     mask_list_out = []
     type_list_out = []
     cent_list_out = []
 
-    if type_classification:
-        pred_inst = pred_map[..., nr_types:]
-        pred_type_ = pred_map[..., :nr_types]
-        pred_type_ = np.squeeze(pred_type_)
+    pred_inst = pred_map[..., nr_types:]
+    pred_type_ = pred_map[..., :nr_types]
+    pred_type_ = np.squeeze(pred_type_)
 
-        pred_inst = np.squeeze(pred_inst)
-        pred_type = np.argmax(pred_type_, axis=-1)
-        pred_type = np.squeeze(pred_type)
-
-    else:
-        pred_inst = pred_map
+    pred_inst = np.squeeze(pred_inst)
+    pred_type = np.argmax(pred_type_, axis=-1)
+    pred_type = np.squeeze(pred_type)
 
     pred_inst = postproc.hover.proc_np_hv(pred_inst,
                                           marker_mode=2,
@@ -124,18 +110,17 @@ def process_instance_wsi(pred_map, type_classification, nr_types, patch_coords, 
         cent_list_out.append(centroid)
         summary_prob_tmp = []
 
-        if type_classification:
-            # get the type
-            inst_type = pred_type[pred_inst == inst_id]
-            type_list, type_pixels = np.unique(inst_type, return_counts=True)
-            type_list = list(zip(type_list, type_pixels))
-            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
-            inst_type = type_list[0][0]
-            if inst_type == 0:  # ! pick the 2nd most dominant if exist
-                if len(type_list) > 1:
-                    inst_type = type_list[1][0]
+        # get the type
+        inst_type = pred_type[pred_inst == inst_id]
+        type_list, type_pixels = np.unique(inst_type, return_counts=True)
+        type_list = list(zip(type_list, type_pixels))
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+        inst_type = type_list[0][0]
+        if inst_type == 0:  # ! pick the 2nd most dominant if exist
+            if len(type_list) > 1:
+                inst_type = type_list[1][0]
 
-            type_list_out.append(inst_type)
+        type_list_out.append(inst_type)
 
     return mask_list_out, type_list_out, cent_list_out
 
