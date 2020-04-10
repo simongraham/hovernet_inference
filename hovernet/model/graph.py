@@ -5,7 +5,7 @@ from hovernet.model.utils import *
 import sys
 sys.path.append("..") # adds higher directory to python modules path.
 try: # HACK: import beyond current level, may need to restructure
-    from config import Config
+    from hovernet.config import Config
 except ImportError:
     assert False, 'Fail to import config.py'
 

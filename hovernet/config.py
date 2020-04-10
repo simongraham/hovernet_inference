@@ -24,25 +24,22 @@ class Config(object):
         self.input_norm  = True # normalize RGB to 0-1 range
 
         #### Info for running inference
-        self.inf_model_path  = '/home/jevjev/hovernet.npz'
+        self.inf_model_path  = None
 
         # WSI processing
         self.tissue_inf = True
-        self.inf_wsi_ext = '.svs'
-        self.inf_wsi_dir = '/path_to_wsis/'
+        self.inf_wsi_ext = None
+        self.inf_wsi_dir = None
         self.proc_level = 0
         self.tiss_level = 4
         self.nr_tiles_h = 5
         self.nr_tiles_w = 5
 
         # ROI processing
-        self.inf_imgs_ext = '.png'
-        self.inf_data_dir = '/home/jevjev/test_roi/'
+        self.inf_imgs_ext = None
+        self.inf_data_dir = None
 
-        self.inf_output_dir = '/home/jevjev/roi_output/'
-
-        if self.inf_wsi_dir == self.inf_data_dir or self.inf_output_dir == self.inf_data_dir:
-            raise Exception('Input and output directories should not be the same- otherwise input directory will be overwritten.')
+        self.inf_output_dir = None
 
         # for inference during evalutaion mode i.e run by run_inference.py
         self.eval_inf_input_tensor_names = ['images']
@@ -51,6 +48,6 @@ class Config(object):
         self.train_inf_output_tensor_names = ['predmap-coded', 'truemap-coded']
 
     def get_model(self):
-        model_constructor = importlib.import_module('model.graph')
+        model_constructor = importlib.import_module('hovernet.model.graph')
         model_constructor = model_constructor.Model_NP_HV  
         return model_constructor # NOTE return alias, not object

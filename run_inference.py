@@ -1,10 +1,23 @@
+"""Usage:
+          run_inference.py <input_dir> <input_extension> <output_dir> <parameters> <mode> (-s <gpu>)...
+
+Loads Hover-Net, and processes either a WSI and or a Region of Interest (ROI)
+
+Options:
+    <input_dir>  directory where WSIs or ROIs are located
+    <input_extension> WSI or ROI file extension
+    <output_dir> directory where results are saved
+    <parameters>  path to HoVer-Net parameters
+    <mode>  indicates whether inference is done over ROI or WSI
+    <gpu>  indicates the GPUs to use
+"""
 import argparse
 import glob
 import math
 import os
 import sys
 from collections import deque
-
+from docopt import docopt
 import cv2
 import numpy as np
 
@@ -471,27 +484,30 @@ class InferWSI(Config):
             self.process_wsi(filename)
             end_time_total = time.time()
             print('FINISHED. Time: ', time_it(start_time_total, end_time_total), 'secs')
-        
-####
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.')
-    parser.add_argument('--mode', help='Use either "roi" or "wsi".')
-    args = parser.parse_args()
-        
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    else:
-        args.gpu = '0'
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    n_gpus = len(args.gpu.split(','))
 
-    if (args.mode != 'wsi') & (args.mode != 'roi'):
-        args.mode = 'roi'
+if __name__ == '__main__':
+    arguments = docopt(__doc__)
+    input_dir = arguments['<input_dir>']
+    input_extension = arguments['<input_extension>']
+    output_dir = arguments['<output_dir>']
+    parameters = arguments['<parameters>']
+    mode = arguments['<mode>']
+    gpus = ','.join(arguments['<gpu>'])
+
+    if input_dir == output_dir:
+        raise Exception(
+            'Input and output directories should not be the same- otherwise input directory will be overwritten.')
+
+    n_gpus = len(gpus.split(','))
+    if n_gpus > 1:
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpus
+    else:
+        gpus = '0'
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpus
 
     # Import libraries for WSI processing
-    if args.mode == 'wsi':
-        import openslide as ops 
+    if mode == 'wsi':
+        import openslide as ops
 
         try:
             import matlab
@@ -499,13 +515,21 @@ if __name__ == '__main__':
         except:
             pass
 
-    if args.mode == 'roi':
+    if mode == 'roi':
         infer = InferROI()
-        infer.run() 
-    elif args.mode == 'wsi': # currently saves results per tile
+        infer.inf_model_path = parameters
+        infer.inf_imgs_ext = input_extension
+        infer.inf_data_dir = input_dir
+        infer.inf_output_dir = output_dir
+        infer.run()
+    elif mode == 'wsi': # currently saves results per tile
         infer = InferWSI()
-        infer.load_model() 
+        infer.inf_model_path = parameters
+        infer.inf_wsi_ext = input_extension
+        infer.inf_wsi_dir = input_dir
+        infer.inf_output_dir = output_dir
+        infer.load_model()
         infer.load_filenames()
-        infer.process_all_wsi() 
+        infer.process_all_wsi()
     else:
         print('Mode not recognised. Use either "roi" or "wsi"')
