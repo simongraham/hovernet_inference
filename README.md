@@ -77,11 +77,12 @@ BibTex entry: <br />
 
 ## Dataset
 
-The network was trained on the PanNuke dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper to speed up inference for WSI processing. <br />
+The network was trained on the PanNuke dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. 
+In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper to speed up inference for WSI processing. <br />
 
 Download the PanNuke dataset [here](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke).
 
-![](dataset.png)
+![](doc/dataset.png)
 
 ## License
 
