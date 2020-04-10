@@ -5,16 +5,6 @@ If you require the model to be trained, refer to the [original repository](https
 
 [Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
 
-## Repository Structure
-
-- `src/` contains executable files used to run the model
-- `misc/`contains util scripts
-- `model/` contains scripts that define the architecture of the segmentation models
-- `postproc/` contains post processing utils
-- `config.py` is the configuration file. Paths need to be changed accordingly
-- `infer.py` is the main inference file
-- `JP2Image.m` and `read_region.m` are matlab scripts for processing `.jp2` WSIs
-
 ## Set up envrionment
 
 ```
@@ -26,28 +16,32 @@ pip install -r requirements.txt
 ## Running the code
 
 Before running the code:
-+ Download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
-+ In `config.py`, set: <br />
-`self.inf_model_path`: location of `hovernet.npz` weights file <br />
-`self.inf_output_dir`: directory where results are saved
-+ If processing WSIs, set: <br />
-`self.inf_wsi_ext` : WSI file extension <br />
-`self.inf_wsi_dir` : directory where WSIs are located
-+ If processing ROIs, set: <br />
-`self.inf_imgs_ext` : ROI file extension <br />
-`self.inf_data_dir` : directory where ROIs are located
+
+Download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
+
+Usage:
+          
+    run_inference.py <input_dir> <input_extension> <output_dir> <parameters> <mode> (-s <gpu>)...
+
+Loads Hover-Net, and processes either a WSI and or a Region of Interest (ROI)
+
+Options:
+
+    <input_dir>  directory where WSIs or ROIs are located
+    <input_extension> WSI or ROI file extension
+    <output_dir> directory where results are saved
+    <parameters>  path to HoVer-Net parameters
+    <mode>  indicates whether inference is done over ROI or WSI
+    <gpu>  indicates the GPUs to use
+    
+Example:
+
+    python run_inference.py ~/test_roi/ .png ~/roi_output/ ~/hovernet.npz roi -s 0
+
 
 Note, other hyperparameters such as batch size and WSI processing level can be tuned. Refer to comments in `config.py.` <br />
 
-To run, use: <br />
 
-`python infer.py --gpu=<gpu_list> --mode=<inf_mode>` <br />
-
-`<gpu_list>` is a comma separated list indicating the GPUs to use. <br />
-`<inf_mode>` is a string indicating the inference mode. Use either:
-
-- `'roi'`
-- `'wsi'`
 
 ## Citation 
 
