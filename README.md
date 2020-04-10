@@ -19,7 +19,7 @@ Before running the code, download the HoVer-Net weights [here](https://drive.goo
 
 Usage:
 ```
-  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
+  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tiles_h=<n>] [--tiles_w=<n>] 
   python run.py (-h | --help)
   python run.py --version
 ```
@@ -35,27 +35,32 @@ Options:
   --batch_size=<n>     Batch size. [default: 25]
   --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
   --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
-  --tiss_seg           Whether to only process tissue area.
-  --tiss_lvl=<n>       Level of WSI pyramid for tissue segmentation. [default: 3]
 ```
 
 Example:
 ```
 python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output' --tissue_seg='1'
+python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
 ```
 
 There are two modes for running this code: `'roi'` and `'wsi'`.
 
 * `'roi'`
-- Input: standard image file
-- Output 1: Overlaid results on image
-- Output 2: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
+    * **Input**: standard image file
+    * **Output 1**: Overlaid results on image
+    * **Output 2**: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
 
-+ `'wsi'`
-- Input: whole-slide image
-- Output: `.npz` file with saved centroids, masks, and nuclear type predictions
+* `'wsi'`
+    * **Input**: whole-slide image
+    * **Output**: `.npz` file with saved centroids, masks, and type predictions
 
+To access the `.npz` file, use: 
+```
+fileload = np.load(filename)
+masks = fileload['mask']
+centroids = fileload['centroid']
+predictions = fileload['type']
+```
 
 ## Citation 
 
