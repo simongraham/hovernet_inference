@@ -4,3 +4,4 @@ scikit-image==0.14.2
 matplotlib===3.0.2
 numpy==1.15.4
 opencv-python
+docopt==0.6.2
