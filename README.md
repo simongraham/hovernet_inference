@@ -19,7 +19,7 @@ Before running the code, download the HoVer-Net weights [here](https://drive.goo
 
 Usage:
 ```
-  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--proc_lvl=<n>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
   run.py (-h | --help)
   run.py --version
 ```
@@ -33,7 +33,6 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --proc_lvl=<n>       Level of WSI pyramid to process (only for WSI). [default: 0]
   --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
   --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
   --tiss_seg           Whether to only process tissue area.
@@ -46,16 +45,17 @@ python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir
 python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output' --tissue_seg='1'
 ```
 
-There are two modes in this code: `'roi'` and `'wsi'`.
+There are two modes for running this code: `'roi'` and `'wsi'`.
 
-`'roi'`: Input: standard image file
-         Output1: Overlaid results on image
-         Output2: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
+* `'roi'`
+- Input: standard image file
+- Output 1: Overlaid results on image
+- Output 2: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
 
-`'wsi'`: Input: whole-slide image
-         Output1: `.npz` file with saved centroids, masks, and nuclear type predictions
++ `'wsi'`
+- Input: whole-slide image
+- Output: `.npz` file with saved centroids, masks, and nuclear type predictions
 
-There are two modes for running this code:   
 
 ## Citation 
 

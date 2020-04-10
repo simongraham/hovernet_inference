@@ -1,7 +1,7 @@
 """run.
 
 Usage:
-  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--proc_lvl=<n>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
   run.py (-h | --help)
   run.py --version
 
@@ -14,7 +14,6 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --proc_lvl=<n>       Level of WSI pyramid to process (only for WSI). [default: 0]
   --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
   --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
   --tiss_seg           Whether to only process tissue area.
@@ -211,6 +210,7 @@ class InferWSI(object):
         self.input_shape = [256, 256]
         self.mask_shape = [164, 164] 
         self.input_norm  = True # normalize RGB to 0-1 range
+        self.proc_lvl   = 0
 
         # for inference during evalutation mode i.e run by infer.py
         self.input_tensor_names = ['images']
@@ -229,7 +229,6 @@ class InferWSI(object):
         self.batch_size = int(args['--batch_size'])
         # Below specific to WSI processing
         self.tiss_seg  = args['--tiss_seg']
-        self.proc_lvl   = int(args['--proc_lvl']) 
         self.tiss_lvl   = int(args['--tiss_lvl'])
         self.nr_tiles_h = int(args['--tiles_h'])
         self.nr_tiles_w = int(args['--tiles_w'])
