@@ -44,7 +44,7 @@ class Config(object):
         if self.inf_wsi_dir == self.inf_data_dir or self.inf_output_dir == self.inf_data_dir:
             raise Exception('Input and output directories should not be the same- otherwise input directory will be overwritten.')
 
-        # for inference during evalutaion mode i.e run by infer.py
+        # for inference during evalutaion mode i.e run by run_inference.py
         self.eval_inf_input_tensor_names = ['images']
         self.eval_inf_output_tensor_names = ['predmap-coded']
         # for inference during training mode i.e run by trainer.py

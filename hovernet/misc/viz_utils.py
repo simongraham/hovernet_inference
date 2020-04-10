@@ -6,7 +6,7 @@ import colorsys
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import bounding_box
+from hovernet.misc.utils import bounding_box
 
 ####
 def random_colours(N, bright=True):

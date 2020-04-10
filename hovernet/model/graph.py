@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorpack.models import BatchNorm, BNReLU, Conv2D, MaxPooling, FixedUnPooling
-from .utils import *
+from hovernet.model.utils import *
 
 import sys
 sys.path.append("..") # adds higher directory to python modules path.

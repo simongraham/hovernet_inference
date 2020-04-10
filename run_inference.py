@@ -20,10 +20,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from tensorpack import logger
 logger._getlogger().disabled = True # disable log handler
 
-from config import Config
-from misc.utils import rm_n_mkdir
-from misc.viz_utils import visualize_instances
-import postproc.process_utils as proc_utils
+from hovernet.config import Config
+from hovernet.misc.utils import rm_n_mkdir
+from hovernet.misc.viz_utils import visualize_instances
+import hovernet.postproc.process_utils as proc_utils
 
 import time
 
