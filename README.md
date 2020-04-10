@@ -54,6 +54,8 @@ There are two modes for running this code: `'roi'` and `'wsi'`.
     * **Input**: whole-slide image
     * **Output**: `.npz` file with saved centroids, masks, and type predictions
 
+In `'wsi'` mode, `--tiles_h` and `--tiles_h` may be used to break the WSI into smaller tiles if needed. <br />
+
 To access the `.npz` file, use: 
 ```
 fileload = np.load(filename)
