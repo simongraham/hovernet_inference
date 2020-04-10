@@ -5,16 +5,6 @@ If you require the model to be trained, refer to the [original repository](https
 
 [Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
 
-## Repository Structure
-
-- `src/` contains executable files used to run the model
-- `misc/`contains util scripts
-- `model/` contains scripts that define the architecture of the segmentation models
-- `postproc/` contains post processing utils
-- `config.py` is the configuration file. Paths need to be changed accordingly
-- `infer.py` is the main inference file
-- `JP2Image.m` and `read_region.m` are matlab scripts for processing `.jp2` WSIs
-
 ## Set up envrionment
 
 ```
@@ -25,29 +15,47 @@ pip install -r requirements.txt
 
 ## Running the code
 
-Before running the code:
-+ Download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
-+ In `config.py`, set: <br />
-`self.inf_model_path`: location of `hovernet.npz` weights file <br />
-`self.inf_output_dir`: directory where results are saved
-+ If processing WSIs, set: <br />
-`self.inf_wsi_ext` : WSI file extension <br />
-`self.inf_wsi_dir` : directory where WSIs are located
-+ If processing ROIs, set: <br />
-`self.inf_imgs_ext` : ROI file extension <br />
-`self.inf_data_dir` : directory where ROIs are located
+Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
 
-Note, other hyperparameters such as batch size and WSI processing level can be tuned. Refer to comments in `config.py.` <br />
+Usage:
+```
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--proc_lvl=<n>] [--tiles_h=<n>] [--tiles_w=<n>] [--tiss_seg] [--tiss_lvl=<n>]
+  run.py (-h | --help)
+  run.py --version
+```
+```
+Options:
+  -h --help            Show this screen.
+  --version            Show version.
+  --gpu=<id>           GPU list. [default: 0]
+  --mode=<mode>        Inference mode. 'roi' or 'wsi'. [default: roi]
+  --model=<path>       Path to saved checkpoint.
+  --input_dir=<path>   Directory containing input images/WSIs.
+  --output_dir=<path>  Directory where the output will be saved. [default: output/]
+  --batch_size=<n>     Batch size. [default: 25]
+  --proc_lvl=<n>       Level of WSI pyramid to process (only for WSI). [default: 0]
+  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
+  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
+  --tiss_seg           Whether to only process tissue area.
+  --tiss_lvl=<n>       Level of WSI pyramid for tissue segmentation. [default: 3]
+```
 
-To run, use: <br />
+Example:
+```
+python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output' --tissue_seg='1'
+```
 
-`python infer.py --gpu=<gpu_list> --mode=<inf_mode>` <br />
+There are two modes in this code: `'roi'` and `'wsi'`.
 
-`<gpu_list>` is a comma separated list indicating the GPUs to use. <br />
-`<inf_mode>` is a string indicating the inference mode. Use either:
+`'roi'`: Input: standard image file
+         Output1: Overlaid results on image
+         Output2: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
 
-- `'roi'`
-- `'wsi'`
+`'wsi'`: Input: whole-slide image
+         Output1: `.npz` file with saved centroids, masks, and nuclear type predictions
+
+There are two modes for running this code:   
 
 ## Citation 
 
@@ -87,7 +95,7 @@ The network was trained on the PanNuke dataset, where images are of size 256x256
 
 Download the PanNuke dataset [here](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke).
 
-![](dataset.png)
+![](doc/dataset.png)
 
 ## License
 
@@ -99,4 +107,4 @@ Simon Graham [Twitter](https://twitter.com/simongraham73?ref_src=twsrc%5Etfw) | 
 
 Jevgenij Gamper [Twitter](https://twitter.com/brutforcimag?ref_src=twsrc%5Etfw) | [Webpage](https://bruteforceimagination.com) | [Google Scholar](https://scholar.google.com/citations?user=5jqljH0AAAAJ&hl=en)
 
-Mohammad Shaban [Webpage](https://warwick.ac.uk/fac/sci/dcs/people/research/u1665958/) | [Google Scholar](https://scholar.google.com.pk/citations?user=8-nvcSQAAAAJ&hl=en)
+Muhammad Shaban [Webpage](https://warwick.ac.uk/fac/sci/dcs/people/research/u1665958/) | [Google Scholar](https://scholar.google.com.pk/citations?user=8-nvcSQAAAAJ&hl=en)
