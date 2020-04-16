@@ -222,7 +222,8 @@ class InferWSI(object):
         '''
         # Paths
         self.model_path  = args['--model']
-        self.input_dir = args['--input_dir']
+        # get absolute path for input directory - otherwise may give error in JP2Image.m
+        self.input_dir = os.path.abspath(args['--input_dir'])
         self.output_dir = args['--output_dir']
 
         # Processing
@@ -240,7 +241,7 @@ class InferWSI(object):
         '''
         Loads a patch from an OpenSlide object
         '''
-        if wsi_ext == '.jp2':
+        if wsi_ext == 'jp2':
             y1 = int(location[1] / pow(2, level)) + 1
             x1 = int(location[0] / pow(2, level)) + 1
             y2 = int(y1 + patch_size[1] -1)
@@ -262,12 +263,12 @@ class InferWSI(object):
         Args:
         wsi_ext: file extension of the whole-slide image
         '''
-        if wsi_ext == '.jp2':
+        if wsi_ext == 'jp2':
             try:
                 self.wsiObj = engine.start_matlab()
             except:
                 print ("Matlab Engine not started...")
-            self.wsiObj.cd(os.getcwd(), nargout=0)
+            self.wsiObj.cd(os.getcwd() + '/hover', nargout=0)
             level_dim, level_downsamples, level_count  = self.wsiObj.JP2Image(self.full_filename, nargout=3)
             level_dim = np.float32(level_dim)
             self.level_dimensions = level_dim.tolist()
@@ -529,8 +530,6 @@ class InferWSI(object):
             if mask_list is not None:
                 np.savez('%s/%s/%s_%s.npz' % (self.output_dir, self.basename, self.basename, str(tile)),
                          mask=mask_list, type=type_list, centroid=cent_list)
-
-                # bar.finish()
     ####
 
     def load_model(self):
