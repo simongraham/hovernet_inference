@@ -7,7 +7,7 @@ from skimage.morphology import remove_small_objects, remove_small_holes, disk
 from skimage.filters import rank, threshold_otsu
 from scipy import ndimage
 
-import hover.postproc.hover
+from hover.postproc.hover_proc import proc_np_hv
 from skimage.measure import regionprops
 
 from hover.misc.utils import bounding_box
@@ -23,7 +23,7 @@ def process_instance(pred_map, nr_types, remap_label=False, output_dtype='uint16
     pred_type = np.argmax(pred_type, axis=-1)
     pred_type = np.squeeze(pred_type)
 
-    pred_inst = postproc.hover.proc_np_hv(pred_inst,
+    pred_inst = proc_np_hv(pred_inst,
                                             marker_mode=2,
                                             energy_mode=2, rgb=None)
     
@@ -68,7 +68,7 @@ def process_instance_wsi(pred_map, nr_types, patch_coords, remap_label=False, of
     pred_type = np.argmax(pred_type_, axis=-1)
     pred_type = np.squeeze(pred_type)
 
-    pred_inst = postproc.hover.proc_np_hv(pred_inst,
+    pred_inst = proc_np_hv(pred_inst,
                                           marker_mode=2,
                                           energy_mode=2, rgb=None)
 

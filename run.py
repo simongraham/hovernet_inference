@@ -242,12 +242,12 @@ class InferWSI(object):
         Loads a patch from an OpenSlide object
         '''
         if wsi_ext == 'jp2':
-            y1 = int(location[1] / pow(2, level)) + 1
             x1 = int(location[0] / pow(2, level)) + 1
-            y2 = int(y1 + patch_size[1] -1)
+            y1 = int(location[1] / pow(2, level)) + 1
             x2 = int(x1 + patch_size[0] -1)
+            y2 = int(y1 + patch_size[1] -1)
             # this will read patch using matlab engine
-            patch = self.wsiObj.read_region(self.full_filename, level, matlab.int32([x1,x2,y1,y2]))
+            patch = self.wsiObj.read_region(self.full_filename, level, matlab.int32([y1,y2,x1,x2]))
             patch = np.array(patch._data).reshape(patch.size, order='F')
         else:
             patch = self.wsiObj.read_region(location, level, patch_size)
@@ -528,6 +528,9 @@ class InferWSI(object):
 
             # Only save files where there exists nuclei
             if mask_list is not None:
+                if self.ds_factor != 1:
+                    cent_list = self.ds_factor * np.array(cent_list)
+                    cent_list = cent_list.tolist()
                 np.savez('%s/%s/%s_%s.npz' % (self.output_dir, self.basename, self.basename, str(tile)),
                          mask=mask_list, type=type_list, centroid=cent_list)
     ####
