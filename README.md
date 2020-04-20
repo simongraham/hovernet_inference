@@ -40,7 +40,7 @@ Options:
 Example:
 ```
 python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output'
 ```
 
 There are two modes for running this code: `'roi'` and `'wsi'`.
