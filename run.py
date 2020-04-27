@@ -8,7 +8,7 @@ Usage:
 Options:
   -h --help            Show this string.
   --version            Show version.
-  --gpu=<id>           GPU list. [default: 2]
+  --gpu=<id>           GPU list. [default: 0]
   --mode=<mode>        Inference mode. 'roi' or 'wsi'. [default: roi]
   --model=<path>       Path to saved checkpoint.
   --input_dir=<path>   Directory containing input images/WSIs.
