@@ -7,18 +7,17 @@ from skimage.morphology import remove_small_objects, watershed
 
 
 ####
-def proc_np_hv(pred, marker_mode=2, energy_mode=2, rgb=None):
+def proc_np_hv(pred, return_coords=True):
     """
     Process Nuclei Prediction with XY Coordinate Map
 
     Args:
-        pred: prediction output, assuming 
-                channel 0 contain probability map of nuclei
-                channel 1 containing the regressed X-map
-                channel 2 containing the regressed Y-map
+        pred:           prediction output, assuming 
+                        channel 0 contain probability map of nuclei
+                        channel 1 containing the regressed X-map
+                        channel 2 containing the regressed Y-map
+        return_coords: return coordinates of extracted instances
     """
-    assert marker_mode == 2 or marker_mode == 1, 'Only support 1 or 2'
-    assert energy_mode == 2 or energy_mode == 1, 'Only support 1 or 2'
 
     blb_raw = pred[...,0]
     h_dir_raw = pred[...,1]
@@ -31,57 +30,41 @@ def proc_np_hv(pred, marker_mode=2, energy_mode=2, rgb=None):
 
     blb = measurements.label(blb)[0]
     blb = remove_small_objects(blb, min_size=10)
-    blb[blb > 0] = 1 # back ground is 0 already
+    blb[blb > 0] = 1 # background is 0 already
     #####
 
-    if energy_mode == 2 or marker_mode == 2:
-        h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
-        sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
-        sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
+    sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
+    sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
 
-        sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
-        sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+    sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+    sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
-        overall = np.maximum(sobelh, sobelv)
-        overall = overall - (1 - blb)
-        overall[overall < 0] = 0
+    overall = np.maximum(sobelh, sobelv)
+    overall = overall - (1 - blb)
+    overall[overall < 0] = 0
 
-        if energy_mode == 2:
-            dist = (1.0 - overall) * blb
-            ## nuclei values form mountains so inverse to get basins
-            dist = -cv2.GaussianBlur(dist,(3, 3),0)
+    dist = (1.0 - overall) * blb
+    ## nuclei values form peaks so inverse to get basins
+    dist = -cv2.GaussianBlur(dist,(3, 3),0)
 
-        if marker_mode == 2:
-            overall[overall >= 0.5] = 1
-            overall[overall <  0.5] = 0
-            marker = blb - overall
-            marker[marker < 0] = 0
-            marker = binary_fill_holes(marker).astype('uint8')
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5, 5))
-            marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
-            marker = measurements.label(marker)[0]
-            marker = remove_small_objects(marker, min_size=10)
+    overall[overall >= 0.5] = 1
+    overall[overall <  0.5] = 0
+    marker = blb - overall
+    marker[marker < 0] = 0
+    marker = binary_fill_holes(marker).astype('uint8')
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5, 5))
+    marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
+    marker = measurements.label(marker)[0]
+    marker = remove_small_objects(marker, min_size=10)
 
-    if energy_mode == 1:
-        dist = h_dir_raw * h_dir_raw + v_dir_raw * v_dir_raw
-        dist[blb == 0] = np.amax(dist)
-        # nuclei values are already basins
-        dist = filters.maximum_filter(dist, 7)
-        dist = cv2.GaussianBlur(dist, (3, 3),0)
+    pred_inst = watershed(dist, marker, mask=blb, watershed_line=True)
+    if return_coords:
+        label_idx = np.unique(pred_inst)
+        coords = measurements.center_of_mass(blb, pred_inst, label_idx[1:])
+        return pred_inst, coords
+    else:
+        return pred_inst
 
-    if marker_mode == 1:
-        h_marker = np.copy(h_dir_raw)
-        v_marker = np.copy(v_dir_raw)
-        h_marker = np.logical_and(h_marker <  0.075, h_marker > -0.075)
-        v_marker = np.logical_and(v_marker <  0.075, v_marker > -0.075)
-        marker = np.logical_and(h_marker > 0, v_marker > 0) * blb
-        marker = binary_dilation(marker, iterations=2)
-        marker = binary_fill_holes(marker) 
-        marker = measurements.label(marker)[0]
-        marker = remove_small_objects(marker, min_size=10)
-    
-    proced_pred = watershed(dist, marker, mask=blb, watershed_line=True)
-
-    return proced_pred

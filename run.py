@@ -1,7 +1,7 @@
 """run.
 
 Usage:
-  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tiles_h=<n>] [--tiles_w=<n>]
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tiles_h=<n>] [--tiles_w=<n>] [--return_masks]
   run.py (-h | --help)
   run.py --version
 
@@ -14,8 +14,9 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
-  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
+  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 3]
+  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 3]
+  --return_masks       Whether to return cropped nuclei masks
 """
 
 
@@ -44,9 +45,10 @@ import time
 
 ####
 def time_it(start_time, end_time):
-    '''
+    """
     Helper function to compute run time
-    '''
+    """
+
     diff = end_time - start_time
     return str(round(diff))
 ####
@@ -63,9 +65,9 @@ class InferROI(object):
         self.output_tensor_names = ['predmap-coded']
 
     def load_params(self, args):
-        '''
+        """
         Load arguments
-        '''
+        """
         # Paths
         self.model_path  = args['--model']
         self.input_dir = args['--input_dir']
@@ -88,6 +90,7 @@ class InferROI(object):
                        to run the prediction upon before being assembled back 
             predictor: A predictor built from a given config.           
         """    
+
         step_size = self.mask_shape
         msk_size = self.mask_shape
         win_size = self.input_shape
@@ -113,7 +116,6 @@ class InferROI(object):
 
         x = np.lib.pad(x, ((padt, padb), (padl, padr), (0, 0)), 'reflect')
 
-        #### TODO: optimize this
         sub_patches = []
         # generating subpatches from orginal
         for row in range(0, last_h, step_size[0]):
@@ -134,11 +136,10 @@ class InferROI(object):
             mini_output = np.split(mini_output, len(sub_patches), axis=0)
             pred_map.extend(mini_output)
 
-        #### Assemble back into full image
         output_patch_shape = np.squeeze(pred_map[0]).shape
         ch = 1 if len(output_patch_shape) == 2 else output_patch_shape[-1]
 
-        #### Assemble back into full image
+        # Assemble back into full image
         pred_map = np.squeeze(np.array(pred_map))
         pred_map = np.reshape(pred_map, (nr_step_h, nr_step_w) + pred_map.shape[1:])
         pred_map = np.transpose(pred_map, [0, 2, 1, 3, 4]) if ch != 1 else \
@@ -162,14 +163,15 @@ class InferROI(object):
         self.predictor = OfflinePredictor(pred_config)
 
     def process(self):
-        '''
+        """
         Process image files within a directory.
         For each image, the function will:
         1) Load the image
         2) Extract patches the entire image
         3) Run inference
         4) Return output numpy file and overlay
-        '''
+        """
+
         save_dir = self.output_dir
         file_list = glob.glob('%s/*' %self.input_dir)
         file_list.sort() # ensure same order
@@ -217,9 +219,10 @@ class InferWSI(object):
         self.output_tensor_names = ['predmap-coded']
 
     def load_params(self, args):
-        '''
+        """
         Load arguments
-        '''
+        """
+
         # Paths
         self.model_path  = args['--model']
         # get absolute path for input directory - otherwise may give error in JP2Image.m
@@ -231,6 +234,7 @@ class InferWSI(object):
         # Below specific to WSI processing
         self.nr_tiles_h = int(args['--tiles_h'])
         self.nr_tiles_w = int(args['--tiles_w'])
+        self.return_masks = args['--return_masks']
     
     def get_model(self):
         model_constructor = importlib.import_module('hover.model.graph')
@@ -238,9 +242,19 @@ class InferWSI(object):
         return model_constructor # NOTE return alias, not object
 
     def read_region(self, location, level, patch_size, wsi_ext):
-        '''
+        """
         Loads a patch from an OpenSlide object
-        '''
+        
+        Args:
+            location: top left coordinates of patch
+            level: level of WSI pyramid at which to extract
+            patch_size: patch size to extract
+            wsi_ext: WSI file extension
+        
+        Returns:
+            patch: extracted patch (np array)
+        """
+
         if wsi_ext == 'jp2':
             x1 = int(location[0] / pow(2, level)) + 1
             y1 = int(location[1] / pow(2, level)) + 1
@@ -256,13 +270,14 @@ class InferWSI(object):
         return patch
     
     def load_wsi(self, wsi_ext):
-        '''
+        """
         Load WSI using OpenSlide. Note, if using JP2, appropriate
         matlab scripts need to be placed in the working directory
 
         Args:
-        wsi_ext: file extension of the whole-slide image
-        '''
+            wsi_ext: file extension of the whole-slide image
+        """
+
         if wsi_ext == 'jp2':
             try:
                 self.wsiObj = engine.start_matlab()
@@ -291,9 +306,10 @@ class InferWSI(object):
     ####
     
     def tile_coords(self):
-        '''
+        """
         Get the tile coordinates and dimensions for processing at level 0
-        '''
+        """
+
         self.im_w = self.level_dimensions[self.proc_lvl][1]
         self.im_h = self.level_dimensions[self.proc_lvl][0]
 
@@ -322,14 +338,14 @@ class InferWSI(object):
     ####
 
     def extract_patches(self, tile):
-        '''
-        # TODO Make it parallel processing?!
+        """
         Extracts patches from the WSI before running inference.
         If tissue mask is provided, only extract foreground patches.
 
         Args:
-        tile: tile number index
-        '''
+            tile: tile number index
+        """
+        
         step_size = np.array(self.mask_shape)
         msk_size = np.array(self.mask_shape)
         win_size = np.array(self.input_shape)
@@ -352,7 +368,7 @@ class InferWSI(object):
         last_w += start_w
 
         self.sub_patches = []
-        self.skipped_idx = []
+        self.patch_idx = []
         self.patch_coords = []
 
         # Generating sub-patches from WSI
@@ -367,21 +383,24 @@ class InferWSI(object):
                                    round(win_size[1] / self.ds_factor_tiss))]
                     if np.sum(win_tiss) > 0:
                         self.patch_coords.append([row, col])
-                    else:
-                        self.skipped_idx.append(idx)
+                        self.patch_idx.append(idx)
                 else:
                     self.patch_coords.append([row, col])
                 idx += 1
+        
+        # generate array of zeros - will insert patch predictions later 
+        self.zero_array = np.zeros([idx,self.mask_shape[0], self.mask_shape[1],9]) # 9 is the number of total output channels
     ####
 
     def load_batch(self, batch_coor, wsi_ext):
-        '''
+        """
         Loads a batch of images from provided coordinates.
 
         Args:
-        batch_coor: list of coordinates in a batch
-        wsi_ext   : file extension of the whole-slide image
-        '''
+            batch_coor: list of coordinates in a batch
+            wsi_ext   : file extension of the whole-slide image
+        """
+
         batch = []
         win_size = self.input_shape
         if self.scan_resolution[0] > 0.35:  # it means image is scanned at 20X
@@ -397,16 +416,16 @@ class InferWSI(object):
     ####
 
     def run_inference(self, tile, wsi_ext):
-        '''
+        """
         Run inference for extracted patches and apply post processing.
         Results are then assembled to the size of the original image.
         
         Args:
-        tile: tile number index
-        wsi_ext: file extension of the whole-slide image
-        '''
+            tile: tile number index
+            wsi_ext: file extension of the whole-slide image
+        """
 
-        pred_map = deque()
+        pred_map_list = deque()
         mask_list = []
         type_list = []
         cent_list = []
@@ -416,7 +435,7 @@ class InferWSI(object):
 
         if len(self.patch_coords) > 0:
             while len(self.patch_coords) > self.batch_size:
-                sys.stdout.write("\rBatch(%d/%d) of Tile(%d/%d)" % (
+                sys.stdout.write("\rBatch (%d/%d) of Tile (%d/%d)" % (
                 idx + 1, batch_count, tile + 1, self.nr_tiles_h * self.nr_tiles_w))
                 sys.stdout.flush()
                 idx += 1
@@ -425,56 +444,47 @@ class InferWSI(object):
                 self.patch_coords = self.patch_coords[self.batch_size:]
                 mini_output = self.predictor(mini_batch)[0]
                 mini_output = np.split(mini_output, self.batch_size, axis=0)
-                mini_mask_list = []
-                mini_type_list = []
-                mini_cent_list = []
-                for j in range(len(mini_output)):
-                    # Post processing
-                    patch_coords = mini_batch_coor[j]
-                    mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.nr_types, patch_coords, offset=offset,
-                        scan_resolution=self.scan_resolution[0]
-                    )
-                    mini_mask_list.extend(mask_list_tmp)
-                    mini_type_list.extend(type_list_tmp)
-                    mini_cent_list.extend(cent_list_tmp)
-                if len(mini_cent_list) > 0:
-                    mask_list.extend(mini_mask_list)
-                    type_list.extend(mini_type_list)
-                    cent_list.extend(mini_cent_list)
+                pred_map_list.extend(mini_output)
 
             # Deal with the case when the number of patches is not divisisible by batch size
             if len(self.patch_coords) != 0:
                 mini_batch = self.load_batch(self.patch_coords, wsi_ext)
                 mini_output = self.predictor(mini_batch)[0]
                 mini_output = np.split(mini_output, len(self.patch_coords), axis=0)
-                mini_mask_list = []
-                mini_type_list = []
-                mini_cent_list = []
-                for j in range(len(mini_output)):
-                    # Post processing
-                    patch_coords = self.patch_coords[j]
-                    mask_list_tmp, type_list_tmp, cent_list_tmp = proc_utils.process_instance_wsi(
-                        mini_output[j], self.nr_types, patch_coords, offset=offset,
-                        scan_resolution=self.scan_resolution[0]
-                    )
-                    mini_mask_list.extend(mask_list_tmp)
-                    mini_type_list.extend(type_list_tmp)
-                    mini_cent_list.extend(cent_list_tmp)
-                if len(mini_cent_list) > 0:
-                    mask_list.extend(mini_mask_list)
-                    type_list.extend(mini_type_list)
-                    cent_list.extend(mini_cent_list)
-        else:
-            mask_list = None
-            type_list = None
-            cent_list = None
+                pred_map_list.extend(mini_output)
+        
+            # Assemble back into full image
+            output_patch_shape = np.squeeze(pred_map_list[0]).shape
+            ch = 1 if len(output_patch_shape) == 2 else output_patch_shape[-1]
 
+            pred_map = self.zero_array
+            pred_map[np.array(self.patch_idx)] = np.squeeze(np.array(pred_map_list))
+            pred_map = np.reshape(pred_map, (self.nr_step_h, self.nr_step_w) + pred_map.shape[1:])
+            pred_map = np.transpose(pred_map, [0, 2, 1, 3, 4]) if ch != 1 else \
+                            np.transpose(pred_map, [0, 2, 1, 3])
+            pred_map = np.reshape(pred_map, (pred_map.shape[0] * pred_map.shape[1], 
+                                            pred_map.shape[2] * pred_map.shape[3], ch))
+            
+            # crop back to original size
+            if self.scan_resolution[0] > 0.35: # 20x
+                pred_map = np.squeeze(pred_map[:self.tile_info[tile][3]*2,:self.tile_info[tile][2]*2])
+            else:
+                pred_map = np.squeeze(pred_map[:self.tile_info[tile][3],:self.tile_info[tile][2]]) 
+
+            # post processing for a tile
+            tile_coords = (self.tile_info[tile][0], self.tile_info[tile][1])
+            mask_list, type_list, cent_list = proc_utils.process_instance_wsi(
+                pred_map, self.nr_types, tile_coords, self.return_masks, offset=offset)
+        else:
+            mask_list = []
+            type_list = []
+            cent_list = []
+        
         return mask_list, type_list, cent_list
-        ####
+    ####
 
     def process_wsi(self, filename):
-        '''
+        """
         Process an individual WSI. This function will:
         1) Load the OpenSlide WSI object
         2) Generate the tissue mask
@@ -482,7 +492,8 @@ class InferWSI(object):
         4) Extract patches from foreground regions
         5) Run inference and return npz for each tile of 
            masks, type predictions and centroid locations
-        '''
+        """
+
         # Load the OpenSlide WSI object
         self.full_filename = self.input_dir + '/' + filename
         wsi_ext = self.full_filename.split('.')[-1]
@@ -520,25 +531,41 @@ class InferWSI(object):
         self.tile_coords()
 
         # Run inference tile by tile - if self.tiss_seg == True, only process tissue regions
+        mask_list_all = []
+        type_list_all = []
+        cent_list_all = []
         for tile in range(len(self.tile_info)):
 
             self.extract_patches(tile)
 
             mask_list, type_list, cent_list = self.run_inference(tile, wsi_ext)
 
-            # Only save files where there exists nuclei
-            if mask_list is not None:
-                if self.ds_factor != 1:
-                    cent_list = self.ds_factor * np.array(cent_list)
-                    cent_list = cent_list.tolist()
-                np.savez('%s/%s/%s_%s.npz' % (self.output_dir, self.basename, self.basename, str(tile)),
-                         mask=mask_list, type=type_list, centroid=cent_list)
+            # add tile predictions to overall prediction list
+            mask_list_all.extend(mask_list)
+            type_list_all.extend(type_list)
+            cent_list_all.extend(cent_list)
+            
+            # uncomment below if you want to save results per tile
+
+            # np.savez('%s/%s/%s_%s.npz' % (
+            # self.output_dir, self.basename, self.basename, str(tile)),
+            # mask=mask_list, type=type_list, centroid=cent_list
+            # )
+
+        if self.ds_factor != 1:
+            cent_list = self.ds_factor * np.array(cent_list)
+            cent_list = cent_list.tolist()
+        np.savez('%s/%s/%s.npz' % (
+            self.output_dir, self.basename, self.basename),
+            mask=mask_list_all, type=type_list_all, centroid=cent_list_all
+            )
     ####
 
     def load_model(self):
-        '''
+        """
         Loads the model and checkpoints according to the model stated in config.py
-        '''
+        """
+
         print('Loading Model...')
         model_path = self.model_path
         model_constructor = self.get_model()
@@ -551,17 +578,18 @@ class InferWSI(object):
     ####
 
     def load_filenames(self):
-        '''
+        """
         Get the list of all WSI files to process
-        '''
+        """
         self.file_list = glob.glob('%s/*' %self.input_dir)
         self.file_list.sort() # ensure same order
 ####
     
     def process_all_wsi(self):
-        '''
+        """
         Process each WSI one at a time and save results as npz file
-        '''
+        """
+
         if os.path.isdir(self.output_dir) == False:
             rm_n_mkdir(self.output_dir)
 

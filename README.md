@@ -33,14 +33,16 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 1]
-  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 1]
+  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 3]
+  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 3]
+  --return_masks       Whether to return cropped nuclei masks
 ```
 
 Example:
 ```
 python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
 python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output' --return_masks
 ```
 
 There are two modes for running this code: `'roi'` and `'wsi'`.
@@ -53,6 +55,8 @@ There are two modes for running this code: `'roi'` and `'wsi'`.
 * `'wsi'`
     * **Input**: whole-slide image
     * **Output**: `.npz` file with saved centroids, masks, and type predictions
+  
+Note, masks are only saved in `'wsi'` mode when `--return_masks` is provided.  <br />
 
 In `'wsi'` mode, `--tiles_h` and `--tiles_h` may be used to break the WSI into smaller tiles if needed. <br />
 
