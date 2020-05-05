@@ -98,7 +98,6 @@ def process_instance_wsi(pred_map, nr_types, tile_coords, return_masks, remap_la
     pred_inst, pred_cent = proc_np_hv(pred_inst, return_coords=True)
     offset_x = tile_coords[0]+offset
     offset_y = tile_coords[1]+offset
-    print(offset_x, offset_y)
 
     cent_list_out = [(x[0]+offset_y, x[1]+offset_x) for x in pred_cent] # ensure 
     
@@ -152,8 +151,8 @@ def crop_array(pred_inst, pred_type, pred_cent, shape_tile, crop_shape=(70,70)):
         crop_pred_inst: cropped pred_inst of shape crop_shape
         crop_pred_type: cropped pred_type of shape crop_shape
     """
-    pred_x = pred_cent[1]
-    pred_y = pred_cent[0]
+    pred_x = pred_cent[1] # x coordinate
+    pred_y = pred_cent[0] # y coordinate
 
     if pred_x < (crop_shape[0]/2):
         x_crop = 0
@@ -172,6 +171,7 @@ def crop_array(pred_inst, pred_type, pred_cent, shape_tile, crop_shape=(70,70)):
     x_crop = int(x_crop)
     y_crop = int(y_crop)
     
+    # perform the crop
     crop_pred_inst = pred_inst[y_crop:y_crop+crop_shape[1], x_crop:x_crop+crop_shape[0]]
     crop_pred_type = pred_type[y_crop:y_crop+crop_shape[1], x_crop:x_crop+crop_shape[0]]
 
