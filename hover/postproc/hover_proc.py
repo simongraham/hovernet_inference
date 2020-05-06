@@ -7,7 +7,7 @@ from skimage.morphology import remove_small_objects, watershed
 
 
 ####
-def proc_np_hv(pred, return_coords=True):
+def proc_np_hv(pred, return_coords=False):
     """
     Process Nuclei Prediction with XY Coordinate Map
 
