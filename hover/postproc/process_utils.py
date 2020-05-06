@@ -34,9 +34,7 @@ def process_instance(pred_map, nr_types, remap_label=False, output_dtype='uint16
     pred_type = np.argmax(pred_type, axis=-1)
     pred_type = np.squeeze(pred_type)
 
-    pred_inst = proc_np_hv(pred_inst,
-                            marker_mode=2,
-                            energy_mode=2, rgb=None)
+    pred_inst = proc_np_hv(pred_inst)
     
     # remap label is very slow - only uncomment if necessary to map labels in order
     if remap_label:
