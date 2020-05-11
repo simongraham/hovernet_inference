@@ -114,13 +114,5 @@ Note that the PanNuke dataset is licensed under [Attribution-NonCommercial-Share
 
 ## Contributors
 
-Simon Graham [Twitter](https://twitter.com/simongraham73?ref_src=twsrc%5Etfw) | [Webpage](https://warwick.ac.uk/fac/sci/mathsys/people/students/2015intake/graham/) | [Google Scholar](https://scholar.google.com/citations?user=KMkGt1YAAAAJ&hl=en)
-
-Jevgenij Gamper [Twitter](https://twitter.com/brutforcimag?ref_src=twsrc%5Etfw) | [Webpage](https://bruteforceimagination.com) | [Google Scholar](https://scholar.google.com/citations?user=5jqljH0AAAAJ&hl=en)
-
-Muhammad Shaban [Webpage](https://warwick.ac.uk/fac/sci/dcs/people/research/u1665958/) | [Google Scholar](https://scholar.google.com.pk/citations?user=8-nvcSQAAAAJ&hl=en)
-
-## Thanks
-
-Thanks to Dang Vu for his assistance with the initial HoVer-Net implementation.
+See the list of [contributors](https://github.com/simongraham/hovernet_inference/graphs/contributors) who participated in this project.
 
