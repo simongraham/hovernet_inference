@@ -19,7 +19,7 @@ Before running the code, download the HoVer-Net weights [here](https://drive.goo
 
 Usage:
 ```
-  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tiles_h=<n>] [--tiles_w=<n>] 
+  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tile_size=<n>] 
   python run.py (-h | --help)
   python run.py --version
 ```
@@ -33,8 +33,7 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 3]
-  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 3]
+  --tile_size=<n>      Size of tiles (assumes square shape). [default: 20000]
   --return_masks       Whether to return cropped nuclei masks
 ```
 
@@ -58,7 +57,7 @@ There are two modes for running this code: `'roi'` and `'wsi'`.
   
 Note, masks are only saved in `'wsi'` mode when `--return_masks` is provided.  <br />
 
-In `'wsi'` mode, `--tiles_h` and `--tiles_h` may be used to break the WSI into smaller tiles if needed. <br />
+In `'wsi'` mode, the WSI is broken into tiles and each tile is processed indepdently. `--tile_size` may be used to alter the size of tiles if needed. <br />
 
 To access the `.npz` file, use: 
 ```

@@ -33,9 +33,9 @@ def process_instance(pred_map, nr_types, remap_label=False, output_dtype='uint16
     pred_inst = np.squeeze(pred_inst)
     pred_type = np.argmax(pred_type, axis=-1)
     pred_type = np.squeeze(pred_type)
-
-    pred_inst = proc_np_hv(pred_inst)
     
+    pred_inst = proc_np_hv(pred_inst)
+
     # remap label is very slow - only uncomment if necessary to map labels in order
     if remap_label:
         pred_inst = remap_label(pred_inst, by_size=True)
@@ -94,6 +94,7 @@ def process_instance_wsi(pred_map, nr_types, tile_coords, return_masks, remap_la
     pred_type = np.squeeze(pred_type)
 
     pred_inst, pred_cent = proc_np_hv(pred_inst, return_coords=True)
+
     offset_x = tile_coords[0]+offset
     offset_y = tile_coords[1]+offset
 

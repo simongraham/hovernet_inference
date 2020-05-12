@@ -1,7 +1,7 @@
 """run.
 
 Usage:
-  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tiles_h=<n>] [--tiles_w=<n>] [--return_masks]
+  run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--batch_size=<n>] [--input_dir=<path>] [--output_dir=<path>] [--tile_size=<n>] [--return_masks]
   run.py (-h | --help)
   run.py --version
 
@@ -14,8 +14,7 @@ Options:
   --input_dir=<path>   Directory containing input images/WSIs.
   --output_dir=<path>  Directory where the output will be saved. [default: output/]
   --batch_size=<n>     Batch size. [default: 25]
-  --tiles_h=<n>        Number of tile in vertical direction for WSI processing. [default: 3]
-  --tiles_w=<n>        Number of tiles in horizontal direction for WSI processing. [default: 3]
+  --tile_size=<n>      Size of tiles (assumes square shape). [default: 20000]
   --return_masks       Whether to return cropped nuclei masks
 """
 
@@ -138,7 +137,7 @@ class InferROI(object):
 
         output_patch_shape = np.squeeze(pred_map[0]).shape
         ch = 1 if len(output_patch_shape) == 2 else output_patch_shape[-1]
-
+        
         # Assemble back into full image
         pred_map = np.squeeze(np.array(pred_map))
         pred_map = np.reshape(pred_map, (nr_step_h, nr_step_w) + pred_map.shape[1:])
@@ -192,7 +191,7 @@ class InferROI(object):
 
             pred_inst, pred_type = proc_utils.process_instance(pred_map, nr_types=self.nr_types)
             
-            overlaid_output = visualize_instances(pred_inst, pred_type, img)
+            overlaid_output = visualize_instances(img, pred_inst, pred_type)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
 
             # combine instance and type arrays for saving
@@ -223,6 +222,8 @@ class InferWSI(object):
         Load arguments
         """
 
+        # Tile Size
+        self.tile_size = int(args['--tile_size'])
         # Paths
         self.model_path  = args['--model']
         # get absolute path for input directory - otherwise may give error in JP2Image.m
@@ -232,8 +233,6 @@ class InferWSI(object):
         # Processing
         self.batch_size = int(args['--batch_size'])
         # Below specific to WSI processing
-        self.nr_tiles_h = int(args['--tiles_h'])
-        self.nr_tiles_w = int(args['--tiles_w'])
         self.return_masks = args['--return_masks']
     
     def get_model(self):
@@ -304,7 +303,7 @@ class InferWSI(object):
             self.scan_resolution = [float(self.wsiObj.properties.get('openslide.mpp-x')),
                                     float(self.wsiObj.properties.get('openslide.mpp-y'))]
     ####
-    
+
     def tile_coords(self):
         """
         Get the tile coordinates and dimensions for processing at level 0
@@ -313,10 +312,11 @@ class InferWSI(object):
         self.im_w = self.level_dimensions[self.proc_lvl][1]
         self.im_h = self.level_dimensions[self.proc_lvl][0]
 
-        if self.nr_tiles_h > 0:
-            step_h = math.floor(self.im_h / self.nr_tiles_h)
-        if self.nr_tiles_w > 0:
-            step_w = math.floor(self.im_w / self.nr_tiles_w)
+        self.nr_tiles_h = math.ceil(self.im_h / self.tile_size)
+        self.nr_tiles_w = math.ceil(self.im_w / self.tile_size)
+
+        step_h = self.tile_size
+        step_w = self.tile_size
 
         self.tile_info = []
 
@@ -328,13 +328,14 @@ class InferWSI(object):
                     extra_h = self.im_h - (self.nr_tiles_h * step_h)
                     dim_h = step_h + extra_h
                 else:
-                    dim_h = step_h 
+                    dim_h = step_h
                 if col == self.nr_tiles_w - 1:
                     extra_w = self.im_w - (self.nr_tiles_w * step_w)
                     dim_w = step_w + extra_w
                 else:
                     dim_w = step_w
-                self.tile_info.append((int(start_w), int(start_h), int(dim_w), int(dim_h)))
+                self.tile_info.append(
+                    (int(start_w), int(start_h), int(dim_w), int(dim_h)))
     ####
 
     def extract_patches(self, tile):
@@ -471,10 +472,14 @@ class InferWSI(object):
             else:
                 pred_map = np.squeeze(pred_map[:self.tile_info[tile][3],:self.tile_info[tile][2]]) 
 
+            start_proc = time.time()
             # post processing for a tile
             tile_coords = (self.tile_info[tile][0], self.tile_info[tile][1])
             mask_list, type_list, cent_list = proc_utils.process_instance_wsi(
                 pred_map, self.nr_types, tile_coords, self.return_masks, offset=offset)
+            end_proc = time.time()
+            print('PROCESSING TIME ', round(end_proc-start_proc))
+            
         else:
             mask_list = []
             type_list = []
