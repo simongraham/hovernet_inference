@@ -26,6 +26,7 @@ import os
 import sys
 import importlib
 from collections import deque
+import openslide as ops 
 
 import cv2
 import numpy as np
@@ -204,7 +205,7 @@ class InferROI(object):
 ####
 
 class InferWSI(object):
-    def __init__(self,):
+    def __init__(self):
         self.nr_types = 6  # denotes number of classes (including BG) for nuclear type classification
         self.input_shape = [256, 256]
         self.mask_shape = [164, 164] 
@@ -625,7 +626,6 @@ if __name__ == '__main__':
 
     # Import libraries for WSI processing
     if args['--mode'] == 'wsi':
-        import openslide as ops 
         try:
             import matlab
             from matlab import engine
