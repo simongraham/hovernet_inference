@@ -473,12 +473,10 @@ class InferWSI(object):
             else:
                 pred_map = np.squeeze(pred_map[:self.tile_info[tile][3],:self.tile_info[tile][2]]) 
 
-            start_proc = time.time()
             # post processing for a tile
             tile_coords = (self.tile_info[tile][0], self.tile_info[tile][1])
             mask_list, type_list, cent_list = proc_utils.process_instance_wsi(
                 pred_map, self.nr_types, tile_coords, self.return_masks, offset=offset)
-            end_proc = time.time()
             
         else:
             mask_list = []
