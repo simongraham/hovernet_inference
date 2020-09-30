@@ -20,3 +20,8 @@ __pycache__/
 *.DS_Store
 .pytest_cache/
 *.pyc
+
+# Local directories
+wsi/
+wsi_out/
+cache/
