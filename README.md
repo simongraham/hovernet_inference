@@ -1,6 +1,6 @@
 # HoVer-Net Inference Code
 
-HoVer-Net ROI and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
+HoVer-Net Tile and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
 If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
 
 [Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
@@ -19,8 +19,9 @@ Before running the code, download the HoVer-Net weights [here](https://drive.goo
 
 Usage:
 ```
-  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] \[--output_dir=<path>] \
-      [--cache_dir=<path>] [--batch_size=<n>]  [--inf_tile_shape=<n>] [--proc_tile_shape=<n>] [--postproc_workers=<n>]
+  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] \
+      [--cache_dir=<path>] [--batch_size=<n>] [--inf_tile_shape=<n>] [--proc_tile_shape=<n>] \
+      [--postproc_workers=<n>] [--return_probs]
   python run.py (-h | --help)
   python run.py --version
 ```
@@ -29,27 +30,29 @@ Options:
   -h --help                  Show this string.
   --version                  Show version.
   --gpu=<id>                 GPU list. [default: 0]
-  --mode=<mode>              Inference mode. 'roi' or 'wsi'. [default: roi]
-  --model=<path>             Path to saved checkpoint.
+  --mode=<mode>              Inference mode. 'tile' or 'wsi'. [default: tile]
+  --model=<str>              Choose either `pannuke` or `monusac` to use model trained on corresponding dataset. [default: pannuke]
   --input_dir=<path>         Directory containing input images/WSIs.
   --output_dir=<path>        Directory where the output will be saved. [default: output/]
   --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
   --batch_size=<n>           Batch size. [default: 25]
-  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 20000]
-  --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 20000]
-  --postproc_workers=<n>     Number of workers for post processing. [default: 4]
+  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
+  --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 2048]
+  --postproc_workers=<n>     Number of workers for post processing. [default: 10]
+  --return_probs             Whether to return the class probabilities for each nucleus
 ```
 
 Example:
 ```
-python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output' --return_masks
+python run.py --gpu='0' --mode='roi' --model='pannuke' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='roi' --model='monusac' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='pannuke' --input_dir='wsi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='monusac' --input_dir='wsi_dir' --output_dir='output' --return_probs
 ```
 
-There are two modes for running this code: `'roi'` and `'wsi'`.
+There are two modes for running this code: `'tile'` and `'wsi'`.
 
-* `'roi'`
+* `'tile'`
     * **Input**: standard image file
     * **Output 1**: Overlaid results on image
     * **Output 2**: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
@@ -57,8 +60,6 @@ There are two modes for running this code: `'roi'` and `'wsi'`.
 * `'wsi'`
     * **Input**: whole-slide image
     * **Output**: `.npz` file with saved centroids, masks, and type predictions
-  
-Note, masks are only saved in `'wsi'` mode when `--return_masks` is provided.  <br />
 
 In `'wsi'` mode, the WSI is broken into tiles and each tile is processed indepdently. `--tile_size` may be used to alter the size of tiles if needed. <br />
 

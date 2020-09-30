@@ -1,4 +1,5 @@
 import cv2
+import sys
 import math
 import colorsys
 import numpy as np
@@ -9,6 +10,18 @@ from hover.postproc.process_utils import process
 
 
 def post_proc_para_wrapper(pred_map_mmap_path, tile_info, func_kwargs):
+    """Post processing parallel wrapper. Loads a tile from the memory map
+    and applies post processing.
+
+    Args:
+        pred_map_mmap_path: path to memory map 
+        tile_info: coordinate information of post processing tiles
+        func_kwargs: function keyword arguments
+
+    Return:
+        post processed tile and tile coordinate info
+
+    """
     idx, tile_tl, tile_br = tile_info
     wsi_pred_map_ptr = np.load(pred_map_mmap_path, mmap_mode="r")
     tile_pred_map = wsi_pred_map_ptr[tile_tl[0] : tile_br[0], tile_tl[1] : tile_br[1]]
@@ -17,12 +30,30 @@ def post_proc_para_wrapper(pred_map_mmap_path, tile_info, func_kwargs):
 
 
 def remove_inst(inst_map, remove_id_list):
+    """Remove a nuclear instance from the prediction
+
+    Args:
+        inst_map: 2D nuclear instance map
+        remove_id_list: list of ids to remove
+    
+    Return:
+        inst_map: refined 2D instance map
+
+    """
     for inst_id in remove_id_list:
         inst_map[inst_map == inst_id] = 0
     return inst_map
 
 
 def assemble_and_flush(wsi_pred_map_mmap_path, tile_info, patch_output_list):
+    """Assemble results and flush
+
+    Args:
+        wsi_pred_map_mmap_path: path to wsi memory map
+        tile_info: coordinate information for inference tiles
+        patch_output_list: list of processed output patches
+
+    """
     # write to newly created holder for this wsi
     wsi_pred_map_ptr = np.load(wsi_pred_map_mmap_path, mmap_mode="r+")
     tile_pred_map = wsi_pred_map_ptr[
@@ -30,8 +61,7 @@ def assemble_and_flush(wsi_pred_map_mmap_path, tile_info, patch_output_list):
         tile_info[1][0][1] : tile_info[1][1][1],
     ]
     if patch_output_list is None:
-        tile_pred_map[:] = 0  # zero flush when there is no-results
-        print(tile_info.flatten(), "flush 0")
+        tile_pred_map[:] = 0  # zero flush when there are no results
         return
 
     for pinfo in patch_output_list:
@@ -42,11 +72,22 @@ def assemble_and_flush(wsi_pred_map_mmap_path, tile_info, patch_output_list):
             pcoord[0] : pcoord[0] + pdata.shape[0],
             pcoord[1] : pcoord[1] + pdata.shape[1],
         ] = pdata
-    print(tile_info.flatten(), "pass")
     return
 
 
 def get_patch_top_left_info(img_shape, input_size, output_size):
+    """Get the top left corner coordinate information
+
+    Args:
+        img_shape: input image shape
+        input_size: shape of input tiles/patches considered within the image 
+        output_size: output shape of each tile/patch
+    
+    Return:
+        input_tl: top left coordinates of the input
+        output_tl: top left coordinates of the output
+
+    """
     in_out_diff = input_size - output_size
     nr_step = np.floor((img_shape - in_out_diff) / output_size) + 1
     last_output_coord = (in_out_diff // 2) + (nr_step) * output_size
@@ -67,8 +108,19 @@ def get_patch_top_left_info(img_shape, input_size, output_size):
 
 #### all must be np.array
 def get_tile_info(img_shape, tile_shape, ambiguous_size=128):
+    """Get the coordinate information of tiles used in post processing
+
+    Args:
+        img_shape: entire input image shape
+        tile_shape: shape of tile used in post processing
+        ambiguous_shape: number of pixels from the boundary likely to contain 'border nuclei'
+    
+    Return:
+        tile_grid, tile_boundary, tile_cross: coordinates of tiles for post processing
+
+    """
     # * get normal tiling set
-    tile_grid_top_left, _ = _get_patch_top_left_info(img_shape, tile_shape, tile_shape)
+    tile_grid_top_left, _ = get_patch_top_left_info(img_shape, tile_shape, tile_shape)
     tile_grid_bot_right = []
     for idx in list(range(tile_grid_top_left.shape[0])):
         tile_tl = tile_grid_top_left[idx][:2]
@@ -121,8 +173,20 @@ def get_tile_info(img_shape, tile_shape, ambiguous_size=128):
 
 
 def get_tile_patch_info(
-    img_shape, tile_input_shape, patch_input_shape, patch_output_shape
-):
+    img_shape, tile_input_shape, patch_input_shape, patch_output_shape):
+    """Get the coordinate information for tiles and patches during inference
+
+    Args:
+        img_shape: shape of input WSI
+        tile_input_shape: shape of tiles used during inference
+        patch_input_shape: shape of input patches
+        patch_output_shape: shape of output patches
+    
+    Return:
+        tile_info_list: coordinates of tiles used during inference
+        patch_info_list: coordinates of patches
+
+    """
     round_to_multiple = lambda x, y: np.floor(x / y) * y
     patch_diff_shape = patch_input_shape - patch_output_shape
 

@@ -10,7 +10,7 @@ from scipy.ndimage.morphology import (
 )
 
 from skimage.morphology import remove_small_objects, watershed
-from misc.utils import get_bounding_box
+from hover.misc.utils import get_bounding_box
 
 import warnings
 
@@ -18,19 +18,20 @@ import warnings
 def noop(*args, **kargs):
     pass
 
-
 warnings.warn = noop
 
-####
 def __proc_np_hv(pred):
-    """
-    Process Nuclei Prediction with XY Coordinate Map
+    """Process Nuclei Prediction with XY Coordinate Map
 
     Args:
         pred: prediction output, assuming 
               channel 0 contain probability map of nuclei
               channel 1 containing the regressed X-map
               channel 2 containing the regressed Y-map
+    
+    Return:
+        proced_map: instance map containing unique value for each nucleus
+
     """
     pred = np.array(pred, dtype=np.float32)
 
@@ -89,27 +90,25 @@ def __proc_np_hv(pred):
     return proced_pred
 
 
-####
-def process(pred_map, nr_types=None, return_centroids=False, return_probs=False):
-    """
-    Post processing script for image tiles
+def process(pred_map, nr_types=None, return_dict=False, return_probs=False):
+    """Post processing script for image tiles
 
     Args:
         pred_map: commbined output of tp, np and hv branches, in the same order
         nr_types: number of types considered at output of nc branch
-        overlaid_img: img to overlay the predicted instances upon, `None` means no
-        type_colour (dict) : `None` to use random, else overlay instances of a type to colour in the dict
-        output_dtype: data type of output
+        return_dict: whether to return the dictionary of instance results
+        return_probs: whether to return the per class probabilities for each nucleus
     
     Returns:
-        pred_inst:     pixel-wise nuclear instance segmentation prediction
-        pred_type_out: pixel-wise nuclear type prediction 
-    """
+        pred_inst: pixel-wise nuclear instance segmentation prediction
+        inst_info_dict: dictionary of instance-level nuclear results
 
+    """
     if nr_types is not None:
-        pred_type = pred_map[..., :1]
-        pred_inst = pred_map[..., 1:]
-        pred_type = pred_type.astype(np.int32)
+        pred_type = pred_map[..., :nr_types]
+        pred_type = np.argmax(pred_type, axis=-1)
+        pred_inst = pred_map[..., nr_types:]
+        
     else:
         pred_inst = pred_map
 
@@ -117,7 +116,7 @@ def process(pred_map, nr_types=None, return_centroids=False, return_probs=False)
     pred_inst = __proc_np_hv(pred_inst)
 
     inst_info_dict = None
-    if return_centroids or nr_types is not None:
+    if return_dict or nr_types is not None:
         inst_id_list = np.unique(pred_inst)[1:]  # exlcude background
         inst_info_dict = {}
         for idx, inst_id in enumerate(inst_id_list):

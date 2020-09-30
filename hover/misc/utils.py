@@ -1,7 +1,7 @@
 import glob
 import os
 import shutil
-
+import requests
 import cv2
 import numpy as np
 
@@ -19,7 +19,16 @@ from scipy.ndimage.morphology import (
 )
 
 
-def bounding_box(img):
+def get_bounding_box(img):  
+    """Get the coordinates of the bounding box of a binary input
+
+    Args:
+        img (ndarray): binary 2D input
+    
+    Return:
+        row and column minimum and maximum coordinates
+
+    """
     rows = np.any(img, axis=1)
     cols = np.any(img, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
@@ -32,47 +41,60 @@ def bounding_box(img):
 
 
 def rm_n_mkdir(dir_path):
-    """
-    Include docstring
+    """Remove and then make a directory
+
+    Args:
+        dir_path: path where to create directory
+
     """
     if os.path.isdir(dir_path):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path)
 
 
-def type_colour(class_value):
-    """
-    Generate RGB colour for overlay based on class id
+def type_colour(model_name):
+    """Generate RGB colour for overlay based on class id
+
     Args:
-        class_value: integer denoting the class of object  
+        model_name: either pannuke or monusac
+    
+    Return: 
+        colour_dict: dictionary showing RGB values for each class value
+
     """
-    if class_value == 0:
-        return 0, 0, 0  # black (background)
-    if class_value == 1:
-        return 255, 0, 0  # red
-    elif class_value == 2:
-        return 0, 255, 0  # green
-    elif class_value == 3:
-        return 0, 0, 255  # blue
-    elif class_value == 4:
-        return 255, 255, 0  # yellow
-    elif class_value == 5:
-        return 255, 165, 0  # orange
-    elif class_value == 6:
-        return 0, 255, 255  # cyan
-    else:
-        raise Exception(
-            "Currently, overlay_segmentation_results() only supports up to 6 classes."
-        )
+    if model_name == 'pannuke':
+        colour_dict = {
+            0: (0, 0, 0), 1: (255, 0, 0), 2: (0, 255, 0), 3: (0, 0, 255), 4: (255, 255, 0), 5: (255, 165, 0)
+        }
+    elif model_name == 'monusac':
+        colour_dict = {
+            0: (0, 0, 0), 1: (255, 0, 0), 2: (0, 255, 0), 3: (0, 0, 255), 4: (255, 255, 0)
+        }
 
+    return colour_dict
+    
 
-def visualize_instances(input_image, inst_dict, line_thickness=2):
+def visualize_instances(input_image, inst_dict, model_name, line_thickness=2):
+    """Generate overlay of results on top of original image
+
+    Args:
+        input_image (ndarray): original input image
+        inst_dict (dict): dictionary of instance level results
+        model_name: either pannuke or monusac - determines overlay colours
+        line_thickness: thickness of line used in overlay
+    
+    Return:
+        overlay (ndarray): generated overlay
+
+    """
     overlay = np.copy((input_image).astype(np.uint8))
+
+    colour_dict = type_colour(model_name) # get dictionary of RGB colours for each class
 
     for idx, [inst_id, inst_info] in enumerate(inst_dict.items()):
         inst_contour = inst_info["contour"]
         if "type" in inst_info and type_colour is not None:
-            inst_colour = type_colour(inst_info["type"])
+            inst_colour = colour_dict[inst_info["type"]]
         else:
             inst_colour = (255, 255, 0)
         cv2.drawContours(overlay, [inst_contour], -1, inst_colour, line_thickness)
@@ -81,10 +103,15 @@ def visualize_instances(input_image, inst_dict, line_thickness=2):
 
 
 def stain_entropy_otsu(img):
-    """
-    Description
-    """
+    """Generate tissue mask using otsu thresholding and entropy calculation
 
+    Args:
+        img (ndarray): input image
+    
+    Return:
+        mask (ndarray): binary mask
+
+    """
     img_copy = img.copy()
     hed = skimage.color.rgb2hed(img_copy)  # convert colour space
     hed = (hed * 255).astype(np.uint8)
@@ -105,10 +132,15 @@ def stain_entropy_otsu(img):
 
 
 def morphology(mask):
-    """
-    Apply morphological operation to refine tissue mask
-    """
+    """Apply morphological operation to refine tissue mask
 
+    Args:
+        mask (ndarray): 2D binary mask
+    
+    Return:
+        mask (ndarray): refined 2D binary mask
+
+    """
     # Join together large groups of small components ('salt')
     mask = binary_dilation(mask, disk(int(4)))
 
@@ -119,12 +151,10 @@ def morphology(mask):
     mask = remove_small_holes(mask, area_threshold=int(20) ** 2, connectivity=1,)
 
     # Close up small holes ('pepper')
-    mask = binary_closing(mask, selem)
+    mask = binary_closing(mask,  disk(int(8)))
 
     mask = remove_small_objects(mask, min_size=int(60) ** 2, connectivity=1,)
-
     mask = binary_dilation(mask, disk(int(8)))
-
     mask = remove_small_holes(mask, area_threshold=int(20) ** 2, connectivity=1,)
 
     # Fill holes in mask
@@ -134,8 +164,14 @@ def morphology(mask):
 
 
 def get_tissue_mask(img):
-    """
-    Description
+    """Get tissue mask of an input image
+
+    Args:
+        img (ndarray): input image 
+    
+    Return:
+        mask (ndarray): output tissue mask
+
     """
     mask = stain_entropy_otsu(img)
     mask = morphology(mask)

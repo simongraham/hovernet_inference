@@ -10,13 +10,12 @@ import glymur
 
 class FileHandler(object):
     def __init__(self):
-        """
-        The handler is responsible for storing the processed data, parsing
+        """The handler is responsible for storing the processed data, parsing
         the metadata from original file, and reading it from storage. 
+
         """
         self.logger = None
         self.mid_output_path = None
-
         self.metadata = {
             ("magnification", None),
             ("base_mag", None),
@@ -51,16 +50,15 @@ class FileHandler(object):
 
 
 class JP2Handler(FileHandler):
-    """
-    Class for handling JP2 whole-slide images.
+    """Class for handling JP2 whole-slide images.
     
     Note, JP2 WSIs use JPEG2000 compression and therefore are not stored in 
     an image pyramid. Nonetheless, we handle the image in such a way that 
     it can be accessed with similar commands as openslide supported WSIs.
 
     We will fix the number or pseudo pyramid levels to be 6
-    """
 
+    """
     def __init__(self, file_path):
         """
         file_path (string): path to single whole-slide image
@@ -106,13 +104,13 @@ class JP2Handler(FileHandler):
         return OrderedDict(metadata)
 
     def read_region(self, coords, read_level, read_level_size):
-        """
-        read a region from a JP2 WSI
+        """Read a region from a JP2 WSI
 
         Args:
             coords (tuple): top left coordinates of image region at level 0 (x,y)
             read_level (int): level of image pyramid to read from
             read_level_size (tuple): dimensions of image region at selected level (dims_x, dims_y)
+
         """
         factor = 2 ** read_level  # indexing is at 40x
         return self.file_ptr[
@@ -121,7 +119,7 @@ class JP2Handler(FileHandler):
             :,
         ]
 
-    def __load_thumbnail(self, magnification, read_level=3):
+    def __load_thumbnail(self, magnification, read_level=2):
         # width-height, not height-width
         read_level_size = self.metadata["level_dims"][read_level]
         read_level_magnification = self.metadata["magnification"][read_level]
@@ -142,14 +140,9 @@ class JP2Handler(FileHandler):
 
 
 class OpenSlideHandler(FileHandler):
-    """
-    Class for handling OpenSlide supported whole-slide images
-    """
-
+    """Class for handling OpenSlide supported whole-slide images"""
     def __init__(self, file_path):
-        """
-        file_path (string): path to single whole-slide image
-        """
+        """File_path (string): path to single whole-slide image"""
         super().__init__()
         self.file_ptr = openslide.OpenSlide(file_path)  # load OpenSlide object
         self.metadata = self.__load_metadata()
@@ -178,28 +171,29 @@ class OpenSlideHandler(FileHandler):
             ("width", self.file_ptr.dimensions[0]),
             ("levels", self.file_ptr.level_count),
             ("level_dims", self.file_ptr.level_dimensions),
+            ("level_downsamples", downsample_level),
         ]
         return OrderedDict(metadata)
 
     def read_region(self, coords, read_level, read_level_size):
-        """
-        read a region from openslide object
+        """Read a region from openslide object
 
         Args:
             coords (tuple): top left coordinates of image region at level 0 (x,y)
             read_level (int): level of image pyramid to read from
             read_level_size (tuple): dimensions of image region at selected level (dims_x, dims_y)
+
         """
         region = self.file_ptr.read_region(coords, read_level, read_level_size)
         return np.array(region)[..., :3]
 
-    def __load_thumbnail(self, magnification, read_level=3):
-        """
-        load a thumbnail from openslide object
+    def __load_thumbnail(self, magnification, read_level=2):
+        """Load a thumbnail from openslide object
 
         Args:
             magnification (float): objective magnification
             read_level (int): level of pyramid to read from
+
         """
         # width-height, not height-width
         read_level_size = self.metadata["level_dims"][read_level]
