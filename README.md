@@ -19,22 +19,25 @@ Before running the code, download the HoVer-Net weights [here](https://drive.goo
 
 Usage:
 ```
-  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tile_size=<n>] 
+  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] \[--output_dir=<path>] \
+      [--cache_dir=<path>] [--batch_size=<n>]  [--inf_tile_shape=<n>] [--proc_tile_shape=<n>] [--postproc_workers=<n>]
   python run.py (-h | --help)
   python run.py --version
 ```
-```
 Options:
-  -h --help            Show this screen.
-  --version            Show version.
-  --gpu=<id>           GPU list. [default: 0]
-  --mode=<mode>        Inference mode. 'roi' or 'wsi'. [default: roi]
-  --model=<path>       Path to saved checkpoint.
-  --input_dir=<path>   Directory containing input images/WSIs.
-  --output_dir=<path>  Directory where the output will be saved. [default: output/]
-  --batch_size=<n>     Batch size. [default: 25]
-  --tile_size=<n>      Size of tiles (assumes square shape). [default: 20000]
-  --return_masks       Whether to return cropped nuclei masks
+```
+  -h --help                  Show this string.
+  --version                  Show version.
+  --gpu=<id>                 GPU list. [default: 0]
+  --mode=<mode>              Inference mode. 'roi' or 'wsi'. [default: roi]
+  --model=<path>             Path to saved checkpoint.
+  --input_dir=<path>         Directory containing input images/WSIs.
+  --output_dir=<path>        Directory where the output will be saved. [default: output/]
+  --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
+  --batch_size=<n>           Batch size. [default: 25]
+  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 20000]
+  --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 20000]
+  --postproc_workers=<n>     Number of workers for post processing. [default: 4]
 ```
 
 Example:
