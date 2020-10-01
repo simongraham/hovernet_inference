@@ -50,21 +50,21 @@ python run.py --gpu='0' --mode='wsi' --model='pannuke.npz' --input_dir='wsi_dir'
 python run.py --gpu='0' --mode='wsi' --model='monusac.npz' --input_dir='wsi_dir' --output_dir='output' --return_probs
 ```
 
-There are two modes for running this code: `'tile'` and `'wsi'`.
+There are two modes for running this code: `tile` and `wsi`.
 
-* `'tile'`
+* `tile`
     * **Input**: standard image file - for example, `.jpg` or `.png`
     * **Output 1**: Overlaid results on image (`.png` file)
     * **Output 2**: Instance segmentation map (`.npy` file)
     * **Output 3**: Instance dictionary (`.json` file)
 
-* `'wsi'`
+* `wsi`
     * **Input**: Whole-slide image - for example, `.svs`, `.ndpi`, `.tiff`, `.mrxs`, `.jp2`
     * **Output 1**: Low resolution thumbnail (`.png` file)
     * **Output 2**: Binary tissue mask at the same resolution of the thumbnail (`.png` file)
     * **Output 3**: Instance dictionary (`.json` file)
 
-In `'wsi'` mode, the WSI is broken into tiles and each tile is processed independently. `--inf_tile_shape` may be used to alter the size of tiles if needed. Similary, the post processing tile can be modified at `--proc_tile_shape`. Using tiles during post processing speeds up overall time and prevents any potential memory errors. <br />
+In `wsi` mode, the WSI is broken into tiles and each tile is processed independently. `--inf_tile_shape` may be used to alter the size of tiles if needed. Similary, the post processing tile can be modified at `--proc_tile_shape`. Using tiles during post processing speeds up overall time and prevents any potential memory errors. <br />
 
 To access the `.json` file, use: 
 ```
@@ -86,7 +86,8 @@ In this repository, we provide checkpoints trained on two datasets:
 - [MoNuSAC Challenge Dataset](https://monusac-2020.grand-challenge.org/)
 
 The network will output an intefer value for each nuclear instance denoting the class prediction. The meaning of these values for each dataset is provided below: <br />
-PanNuke:
+
+**PanNuke:**
 - 0: Background
 - 1: Neoplastic
 - 2: inflammatory
@@ -94,7 +95,7 @@ PanNuke:
 - 4: Dead
 - 5: Non-Neoplastic Epithelial
 
-MoNuSAC:
+**MoNuSAC:**
 - 0: Background
 - 1: Neoplastic
 - 2: inflammatory
