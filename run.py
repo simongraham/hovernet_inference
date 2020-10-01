@@ -97,6 +97,7 @@ class InferTile(object):
         self.input_dir = args["--input_dir"]
         self.output_dir = args["--output_dir"]
         self.batch_size = int(args["--batch_size"])
+        self.return_probs = args['--return_probs']
 
         # get the model name from the checkpoint
         model_name = os.path.basename(self.model_path)
@@ -238,7 +239,8 @@ class InferTile(object):
             ###
             pred_map = self.__gen_prediction(img, self.predictor)
 
-            pred_inst, pred_info = process(pred_map, nr_types=self.nr_types, return_dict=True)
+            pred_inst, pred_info = process(
+                pred_map, nr_types=self.nr_types, return_dict=True, return_probs=self.return_probs)
 
             overlaid_output = visualize_instances(img, pred_info, self.model_name)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
@@ -356,6 +358,7 @@ class InferWSI(object):
         cache_tile = np.load("%s/cache_tile.npy" % self.cache_dir)
         cache_tile = np.array(cache_tile)
         sub_patches = []
+        patches_info = []
         # generating subpatches from orginal
         for patch_coord in patch_top_left_list:
             win = cache_tile[
@@ -363,16 +366,22 @@ class InferWSI(object):
                 patch_coord[1] : patch_coord[1] + self.patch_input_shape[0],
             ]
             sub_patches.append(win)
+            patches_info.append(patch_coord)
 
         pred_list = deque()
         batch_count = len(sub_patches)
         nr_proc = 0 # used for logging number of processed batches
         while len(sub_patches) > self.batch_size:
             mini_batch = sub_patches[: self.batch_size]
-            sub_patches = sub_patches[self.batch_size :]
+            sub_patches = sub_patches[self.batch_size:]
+            batch_info = patches_info[: self.batch_size]
+            patches_info = patches_info[self.batch_size:]
             batch_output = self.predictor(mini_batch)[0]
             batch_output = np.split(batch_output, self.batch_size, axis=0)
-            pred_list.extend(batch_output)
+            batch_info = np.split(np.array(batch_info), self.batch_size, axis=0)
+            batch_output_combined = list(
+                zip(batch_info, batch_output))
+            pred_list.extend(batch_output_combined)
             ###
             nr_proc += self.batch_size
             sys.stdout.write("\rProcessing Batch (%d/%d) of Tile (%d/%d)" %
@@ -381,7 +390,10 @@ class InferWSI(object):
         if len(sub_patches) != 0:
             batch_output = self.predictor(sub_patches)[0]
             batch_output = np.split(batch_output, len(sub_patches), axis=0)
-            pred_list.extend(batch_output)
+            batch_info = np.split(np.array(patches_info), len(patches_info), axis=0)
+            batch_output_combined = list(
+                zip(batch_info, batch_output))
+            pred_list.extend(batch_output_combined)
             ###
             nr_proc += len(sub_patches)
             sys.stdout.write("\rProcessing Batch (%d/%d) of Tile (%d/%d)" %

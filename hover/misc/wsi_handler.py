@@ -119,7 +119,7 @@ class JP2Handler(FileHandler):
             :,
         ]
 
-    def __load_thumbnail(self, magnification, read_level=2):
+    def __load_thumbnail(self, magnification, read_level=3):
         # width-height, not height-width
         read_level_size = self.metadata["level_dims"][read_level]
         read_level_magnification = self.metadata["magnification"][read_level]
@@ -187,7 +187,7 @@ class OpenSlideHandler(FileHandler):
         region = self.file_ptr.read_region(coords, read_level, read_level_size)
         return np.array(region)[..., :3]
 
-    def __load_thumbnail(self, magnification, read_level=2):
+    def __load_thumbnail(self, magnification, read_level=3):
         """Load a thumbnail from openslide object
 
         Args:
@@ -196,6 +196,8 @@ class OpenSlideHandler(FileHandler):
 
         """
         # width-height, not height-width
+        if self.metadata["levels"] < read_level:
+            read_level = self.metadata["levels"] - 1
         read_level_size = self.metadata["level_dims"][read_level]
         read_level_magnification = self.metadata["magnification"][read_level]
         img = self.read_region((0, 0), read_level, read_level_size)
