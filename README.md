@@ -15,7 +15,7 @@ pip install -r requirements.txt
 
 ## Running the code
 
-Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
+Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing). There are two checkpoint files that are available to use: `pannuke.npz` and `monusac.npz` (see below for licensing details).
 
 Usage:
 ```
@@ -44,32 +44,63 @@ Options:
 
 Example:
 ```
-python run.py --gpu='0' --mode='roi' --model='pannuke' --input_dir='tile_dir' --output_dir='output'
-python run.py --gpu='0' --mode='roi' --model='monusac' --input_dir='tile_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='pannuke' --input_dir='wsi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='monusac' --input_dir='wsi_dir' --output_dir='output' --return_probs
+python run.py --gpu='0' --mode='roi' --model='pannuke.npz' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='roi' --model='monusac.npz' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='pannuke.npz' --input_dir='wsi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='monusac.npz' --input_dir='wsi_dir' --output_dir='output' --return_probs
 ```
 
 There are two modes for running this code: `'tile'` and `'wsi'`.
 
 * `'tile'`
-    * **Input**: standard image file
-    * **Output 1**: Overlaid results on image
-    * **Output 2**: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
+    * **Input**: standard image file - for example, `.jpg` or `.png`
+    * **Output 1**: Overlaid results on image (`.png` file)
+    * **Output 2**: Instance segmentation map (`.npy` file)
+    * **Output 3**: Instance dictionary (`.json` file)
 
 * `'wsi'`
-    * **Input**: whole-slide image
-    * **Output**: `.npz` file with saved centroids, masks, and type predictions
+    * **Input**: Whole-slide image - for example, `.svs`, `.ndpi`, `.tiff`, `.mrxs`, `.jp2`
+    * **Output 1**: Low resolution thumbnail (`.png` file)
+    * **Output 2**: Binary tissue mask at the same resolution of the thumbnail (`.png` file)
+    * **Output 3**: Instance dictionary (`.json` file)
 
-In `'wsi'` mode, the WSI is broken into tiles and each tile is processed indepdently. `--tile_size` may be used to alter the size of tiles if needed. <br />
+In `'wsi'` mode, the WSI is broken into tiles and each tile is processed independently. `--inf_tile_shape` may be used to alter the size of tiles if needed. Similary, the post processing tile can be modified at `--proc_tile_shape`. Using tiles during post processing speeds up overall time and prevents any potential memory errors. <br />
 
-To access the `.npz` file, use: 
+To access the `.json` file, use: 
 ```
-fileload = np.load(filename)
-masks = fileload['mask']
-centroids = fileload['centroid']
-predictions = fileload['type']
+with open(json_path) as json_file:
+    data = json.load(json_file)
+    for inst in data:
+        inst_info = data[inst]
+        inst_bbox = inst_info['bbox']
+        inst_centroid = inst_info['centroid']
+        inst_contour = inst_info['contour']
+        inst_type = inst_info['type']
+        inst_prob = inst_info['probs']
 ```
+## Datasets
+
+In this repository, we provide checkpoints trained on two datasets:
+
+- [PanNuke Dataset](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke)
+- [MoNuSAC Challenge Dataset](https://monusac-2020.grand-challenge.org/)
+
+The network will output an intefer value for each nuclear instance denoting the class prediction. The meaning of these values for each dataset is provided below: <br />
+PanNuke:
+- 0: Background
+- 1: Neoplastic
+- 2: inflammatory
+- 3: Connective
+- 4: Dead
+- 5: Non-Neoplastic Epithelial
+
+MoNuSAC:
+- 0: Background
+- 1: Neoplastic
+- 2: inflammatory
+- 3: Connective
+- 4: Dead
+- 5: Non-Neoplastic Epithelial
 
 ## Citation 
 
@@ -85,7 +116,6 @@ BibTex entry: <br />
   year={2019},
   publisher={Elsevier}
 }
-
 @inproceedings{gamper2019pannuke,
   title={PanNuke: an open pan-cancer histology dataset for nuclei instance segmentation and classification},
   author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Benet, Ksenija and Khuram, Ali and Rajpoot, Nasir},
@@ -94,22 +124,28 @@ BibTex entry: <br />
   year={2019},
   organization={Springer}
 }
-
 @article{gamper2020pannuke,
   title={PanNuke Dataset Extension, Insights and Baselines},
   author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Graham, Simon and Jahanifar, Mostafa and Benet, Ksenija and Khurram, Syed Ali and Azam, Ayesha and Hewitt, Katherine and Rajpoot, Nasir},
   journal={arXiv preprint arXiv:2003.10778},
   year={2020}
 }
+@article{monusac2020,
+author = {Verma, Ruchika; Kumar, Neeraj; Patil, Abhijeet; Kurian, Nikhil; Rane, Swapnil; and Sethi, Amit},
+year = {2020},
+month = {02},
+pages = {},
+language = {en},
+title = {Multi-organ Nuclei Segmentation and Classification Challenge 2020},
+publisher = {Unpublished},
+doi = {10.13140/RG.2.2.12290.02244/1},
+ url = {http://rgdoi.net/10.13140/RG.2.2.12290.02244/1}
+}
 ```
 
-## Dataset
+## Extra Notes
 
-The network was trained on the PanNuke dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper to speed up inference for WSI processing. <br />
-
-Download the PanNuke dataset [here](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke).
-
-![](doc/dataset.png)
+In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing.
 
 ## License
 
