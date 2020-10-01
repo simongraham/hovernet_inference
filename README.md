@@ -13,6 +13,8 @@ conda activate hovernet
 pip install -r requirements.txt
 ```
 
+Glymur requires OpenJPEG as a dependency. If this is not installed, use `conda install -c conda-forge openjpeg`.
+
 ## Running the code
 
 Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing). There are two checkpoint files that are available to use: `pannuke.npz` and `monusac.npz` (see below for licensing details).
