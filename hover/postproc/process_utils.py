@@ -166,10 +166,11 @@ def process(pred_map, nr_types=None, return_dict=False, return_probs=False):
                     inst_type = type_list[1][0]
             inst_info_dict[inst_id]["type"] = int(inst_type)
             if return_probs:
+                type_list_ = type_list_.tolist()
                 nr_pix = np.sum(inst_map_crop)
                 inst_probs = np.zeros([nr_types])
-                for type_idx in type_list:
-                    inst_probs[type_idx] = float(type_pixels_[type_idx] / nr_pix)
+                for type_idx in type_list_:
+                    inst_probs[type_idx] = float(type_pixels_[type_list_.index(type_idx)] / nr_pix)
                 inst_info_dict[inst_id]["probs"] = inst_probs
 
     return pred_inst, inst_info_dict
