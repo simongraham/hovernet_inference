@@ -54,6 +54,7 @@ from hover.misc.run_utils import (
     assemble_and_flush,
     get_tile_info,
     get_tile_patch_info,
+    post_proc_para_wrapper
 )
 
 import time
@@ -82,13 +83,20 @@ class InferTile(object):
         self.patch_output_shape = [164, 164]
         self.input_norm = True  
 
+        self.input_tensor_names = ["images"]
+        self.output_tensor_names = ["predmap-coded"]
+    
+    def _parse_args(self, args):
+        """Parse CLI arguments
+
+        Args:
+            args: command line interface arguments
+
+        """
         self.model_path = args["--model"]
         self.input_dir = args["--input_dir"]
         self.output_dir = args["--output_dir"]
         self.batch_size = int(args["--batch_size"])
-
-        self.input_tensor_names = ["images"]
-        self.output_tensor_names = ["predmap-coded"]
 
         # get the model name from the checkpoint
         model_name = os.path.basename(self.model_path)
@@ -289,6 +297,16 @@ class InferWSI(object):
         self.ambiguous_size = 128  
         self.wsi_inst_info = {}
 
+        self.input_tensor_names = ["images"]
+        self.output_tensor_names = ["predmap-coded"]
+    
+    def _parse_args(self, args):
+        """Parse CLI arguments
+
+        Args:
+            args: command line interface arguments
+        
+        """
         # tile inference shape
         self.inf_tile_shape = [
             int(args["--inf_tile_shape"]),
@@ -308,9 +326,6 @@ class InferWSI(object):
         self.return_probs = args["--return_probs"]
         self.batch_size = int(args["--batch_size"])
         self.postproc_workers = int(args["--postproc_workers"])
-
-        self.input_tensor_names = ["images"]
-        self.output_tensor_names = ["predmap-coded"]
 
         # get the model name from the checkpoint
         model_name = os.path.basename(self.model_path)
@@ -475,7 +490,7 @@ class InferWSI(object):
         if self.postproc_workers > 0:
             proc_pool = Pool(processes=self.postproc_workers)
 
-        wsi_pred_map_mmap_path = "%s/pred_map.npy" % self.cache_dir
+        wsi_pred_map_mmap_path = "%s/prob_map.npy" % self.cache_dir
         for idx in list(range(tile_info_list.shape[0])):
             tile_tl = tile_info_list[idx][0]
             tile_br = tile_info_list[idx][1]
@@ -504,7 +519,7 @@ class InferWSI(object):
         return
 
     def load_wsi(self, filename):
-        """Load a WSI and get key information"""
+        """Load a WSI and get information"""
         wsi_ext = filename.split(".")[-1]
         self.wsi_handler = get_wsi_handler(filename, wsi_ext)
 
@@ -548,10 +563,11 @@ class InferWSI(object):
         cv2.imwrite("%s/mask.png" % self.output_dir_wsi, self.wsi_mask * 255)
 
         # Initialise memory maps to prevent large arrays being stored in RAM
+        out_ch = self.nr_types + 3 # nr types + instance channels
         self.wsi_prob_map_mmap = np.lib.format.open_memmap(
             "%s/prob_map.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape) + (4,),
+            shape=tuple(self.wsi_proc_shape) + (out_ch,),
             dtype=np.float32,
         )
         self.wsi_inst_map = np.lib.format.open_memmap(
@@ -578,7 +594,7 @@ class InferWSI(object):
         self.__gen_prediction(inf_tile_info_list, patch_info_list)
 
         end = time.perf_counter()
-        sys.stdout.write("\rInference Time: %d)" % end-start)
+        sys.stdout.write("\rInference Time: " + str(end-start))
         sys.stdout.flush()
 
         # --------------------------RUN POST PROCESSING-----------------------------
@@ -715,7 +731,7 @@ class InferWSI(object):
         self.__dispatch_post_processing(proc_cross_info, postproc_fixborder_callback)
         pbar.close()
 
-        # ! save as JSON because it isn't feasible to save the WSI at highest
+        # ! save as JSON because it isn't feasible to save the WSI at highest resolution
         json_dict = {}
         for inst_id, inst_info in self.wsi_inst_info.items():
             new_inst_info = {}
@@ -731,7 +747,7 @@ class InferWSI(object):
             json.dump(json_dict, handle)
 
         end = time.perf_counter()
-        sys.stdout.write("\rPost Proc Time: %d)" % end-start)
+        sys.stdout.write("\rPost Proc Time: " + str(end-start))
         sys.stdout.flush()
 
     def load_model(self):
@@ -778,7 +794,7 @@ class InferWSI(object):
                 self.process_wsi(filename)
 
                 end = time.perf_counter()
-                sys.stdout.write("\rOverall Time: %d)" % end-start)
+                sys.stdout.write("\rOverall Time: " + str(end-start))
                 sys.stdout.flush()
 
 
@@ -806,10 +822,12 @@ if __name__ == "__main__":
 
     if args["--mode"] == "tile":
         infer = InferTile()
+        infer._parse_args(args)
         infer.load_model()
         infer.process_all_files()
     elif args["--mode"] == "wsi":  
         infer = InferWSI()
+        infer._parse_args(args)
         infer.load_model()
         infer.load_filenames()
         infer.process_all_files()
