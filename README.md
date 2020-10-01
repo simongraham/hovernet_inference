@@ -1,9 +1,13 @@
 # HoVer-Net Inference Code
 
 HoVer-Net Tile and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
+
+[Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper.  <br />
+
+**NEWS:** Our model achieved the best performance in the MoNuSAC challenge.  <br />
+
 If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
 
-[Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
 
 ## Set up envrionment
 
@@ -17,7 +21,7 @@ Glymur requires OpenJPEG as a dependency. If this is not installed, use `conda i
 
 ## Running the code
 
-Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing). There are two checkpoint files that are available to use: `pannuke.npz` and `monusac.npz` (see below for licensing details).
+Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing). There are two checkpoint files that are available to use: `pannuke.npz` and `monusac.npz`, which correspond to the dataset that they were trained on. See below for licensing details. 
 
 Usage:
 ```
@@ -148,7 +152,7 @@ doi = {10.13140/RG.2.2.12290.02244/1},
 
 ## Extra Notes
 
-In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing.
+In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing. For further information on how to run the models, refer to the `usage.ipynb` jupyter notebook.
 
 ## License
 
