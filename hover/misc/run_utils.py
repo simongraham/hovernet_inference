@@ -45,20 +45,21 @@ def remove_inst(inst_map, remove_id_list):
     return inst_map
 
 
-def assemble_and_flush(wsi_pred_map_mmap_path, tile_info, patch_output_list):
+def assemble_and_flush(wsi_pred_map_mmap_path, tile_info, base_mag_ds, patch_output_list):
     """Assemble results and flush
 
     Args:
         wsi_pred_map_mmap_path: path to wsi memory map
         tile_info: coordinate information for inference tiles
+        base_mag_ds: scale factor between wsi at 40x and scanned wsi
         patch_output_list: list of processed output patches
 
     """
     # write to newly created holder for this wsi
     wsi_pred_map_ptr = np.load(wsi_pred_map_mmap_path, mmap_mode="r+")
     tile_pred_map = wsi_pred_map_ptr[
-        tile_info[1][0][0] : tile_info[1][1][0],
-        tile_info[1][0][1] : tile_info[1][1][1],
+        tile_info[1][0][0]*base_mag_ds: tile_info[1][1][0]*base_mag_ds,
+        tile_info[1][0][1]*base_mag_ds: tile_info[1][1][1]*base_mag_ds,
     ]
     if patch_output_list is None:
         tile_pred_map[:] = 0  # zero flush when there are no results

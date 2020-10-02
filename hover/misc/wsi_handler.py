@@ -196,7 +196,7 @@ class OpenSlideHandler(FileHandler):
 
         """
         # width-height, not height-width
-        if self.metadata["levels"] < read_level:
+        if (self.metadata["levels"]-1) < read_level:
             read_level = self.metadata["levels"] - 1
         read_level_size = self.metadata["level_dims"][read_level]
         read_level_magnification = self.metadata["magnification"][read_level]

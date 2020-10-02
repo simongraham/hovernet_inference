@@ -365,6 +365,11 @@ class InferWSI(object):
                 patch_coord[0] : patch_coord[0] + self.patch_input_shape[0],
                 patch_coord[1] : patch_coord[1] + self.patch_input_shape[0],
             ]
+            if self.base_mag_ds > 1:
+                # cv.INTER_LINEAR is good for zooming
+                win = cv2.resize(
+                    win, (self.patch_input_shape[1], self.patch_input_shape[0]), cv2.INTER_LINEAR)
+                patch_coord *= self.base_mag_ds
             sub_patches.append(win)
             patches_info.append(patch_coord)
 
@@ -452,7 +457,7 @@ class InferWSI(object):
             tile_info = tile_info_list[idx]
             # select patch basing on top left coordinate of input
             start_coord = tile_info[0, 0]
-            end_coord = tile_info[0, 1] - self.patch_input_shape
+            end_coord = tile_info[0, 1] - self.patch_input_shape_tmp
             selection = masking(
                 patch_info_list[:, 0, 0, 0], start_coord[0], end_coord[0]
             ) & masking(patch_info_list[:, 0, 0, 1], start_coord[1], end_coord[1])
@@ -464,7 +469,8 @@ class InferWSI(object):
             # there no valid patches, so flush 0 and skip
             if tile_patch_info_list.shape[0] == 0:
                 proc_pool.apply_async(
-                    assemble_and_flush, args=(wsi_pred_map_mmap_path, tile_info, None)
+                    assemble_and_flush, args=(
+                        wsi_pred_map_mmap_path, tile_info, self.base_mag_ds, None)
                 )
                 continue
 
@@ -484,7 +490,8 @@ class InferWSI(object):
 
             proc_pool.apply_async(
                 assemble_and_flush,
-                args=(wsi_pred_map_mmap_path, tile_info, patch_output_list),
+                args=(wsi_pred_map_mmap_path, tile_info,
+                      self.base_mag_ds, patch_output_list),
             )
         proc_pool.close()
         proc_pool.join()
@@ -541,6 +548,10 @@ class InferWSI(object):
         self.ds_factor_mask = (
             self.wsi_handler.metadata["magnification"][self.wsi_proc_lvl] / 1.25
         )
+
+        base_mag = self.wsi_handler.metadata["base_mag"]
+        self.base_mag_ds = int(round(40.0 / base_mag)) # if scanned at 20x, this will be 2
+
         self.wsi_proc_shape = self.wsi_handler.metadata["level_dims"][self.wsi_proc_lvl]
         self.wsi_proc_shape = np.array(self.wsi_proc_shape[::-1])  # to Y, X
 
@@ -579,35 +590,41 @@ class InferWSI(object):
         self.wsi_prob_map_mmap = np.lib.format.open_memmap(
             "%s/prob_map.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape) + (out_ch,),
+            shape=tuple(self.wsi_proc_shape*self.base_mag_ds) + (out_ch,),
             dtype=np.float32,
         )
         self.wsi_inst_map = np.lib.format.open_memmap(
             "%s/pred_inst.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape),
+            shape=tuple(self.wsi_proc_shape*self.base_mag_ds),
             dtype=np.int32,
         )
 
         # ------------------------------RUN INFERENCE--------------------------------
         start = time.perf_counter() # init inference timer
         # the WSI is processed tile by tile. Get the coordinates of tiles and patches
-        self.patch_input_shape = np.array(self.patch_input_shape)
-        self.patch_output_shape = np.array(self.patch_output_shape)
 
-        inf_tile_input_shape = np.array(self.inf_tile_shape)
+        patch_input_shape_tmp = np.array(self.patch_input_shape)
+        self.patch_input_shape_tmp = (
+            patch_input_shape_tmp/self.base_mag_ds).astype('int')
+
+        patch_stride = np.array(self.patch_output_shape)
+        patch_stride = (patch_stride/self.base_mag_ds).astype('int')
+
+        # make tile smaller if not at 40x. We extract more patches and resize if 20x
+        inf_tile_input_shape = np.array(self.inf_tile_shape) / self.base_mag_ds
         inf_tile_info_list, patch_info_list = get_tile_patch_info(
             self.wsi_proc_shape,
             inf_tile_input_shape,
-            self.patch_input_shape,
-            self.patch_output_shape,
+            self.patch_input_shape_tmp,
+            patch_stride,
         )
         # get the predictions of each patch in a tile and save to memory map
         self.__gen_prediction(inf_tile_info_list, patch_info_list)
+        print(". All Tiles Processed!")
 
         end = time.perf_counter()
-        sys.stdout.write("\rInference Time: " + str(end-start))
-        sys.stdout.flush()
+        print("Inference Time:", round(end-start), 'secs')
 
         # --------------------------RUN POST PROCESSING-----------------------------
         # * define post processing callbacks - can only receive one argument
@@ -759,8 +776,7 @@ class InferWSI(object):
             json.dump(json_dict, handle)
 
         end = time.perf_counter()
-        sys.stdout.write("\rPost Proc Time: " + str(end-start))
-        sys.stdout.flush()
+        print("Post Proc Time:", round(end-start), 'secs')
 
     def load_model(self):
         """Loads the model and checkpoints"""
@@ -806,8 +822,7 @@ class InferWSI(object):
                 self.process_wsi(filename)
 
                 end = time.perf_counter()
-                sys.stdout.write("\rOverall Time: " + str(end-start))
-                sys.stdout.flush()
+                print("Overall Time:", round(end-start), 'secs')
 
 
 # -------------------------------------------------------------------------------------
