@@ -121,7 +121,7 @@ def process(pred_map, nr_types=None, return_dict=False, return_probs=False):
         inst_info_dict = {}
         for idx, inst_id in enumerate(inst_id_list):
             inst_map = pred_inst == inst_id
-            # TODO: chane format of bbox output
+            # TODO: change format of bbox output
             rmin, rmax, cmin, cmax = get_bounding_box(inst_map)
             inst_bbox = np.array([[rmin, cmin], [rmax, cmax]])
             inst_map = inst_map[

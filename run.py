@@ -10,11 +10,11 @@ Usage:
 Options:
   -h --help                  Show this string.
   --version                  Show version.
-  --gpu=<id>                 GPU list. [default: 0]
-  --mode=<mode>              Inference mode. `tile` or `wsi`. [default: tile]
-  --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz`
-  --input_dir=<path>         Directory containing input images/WSIs.
-  --output_dir=<path>        Directory where the output will be saved. [default: output/]
+  --gpu=<id>                 GPU list. [default: 1]
+  --mode=<mode>              Inference mode. `tile` or `wsi`. [default: wsi]
+  --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz` [default: pannuke.npz]
+  --input_dir=<path>         Directory containing input images/WSIs. [default: wsi_input]
+  --output_dir=<path>        Directory where the output will be saved. [default: wsi_output/]
   --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
   --batch_size=<n>           Batch size. [default: 25]
   --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
@@ -362,8 +362,8 @@ class InferWSI(object):
         # generating subpatches from orginal
         for patch_coord in patch_top_left_list:
             win = cache_tile[
-                patch_coord[0] : patch_coord[0] + self.patch_input_shape[0],
-                patch_coord[1] : patch_coord[1] + self.patch_input_shape[0],
+                patch_coord[0] : patch_coord[0] + self.patch_input_shape_tmp[0],
+                patch_coord[1] : patch_coord[1] + self.patch_input_shape_tmp[0],
             ]
             if self.base_mag_ds > 1:
                 # cv.INTER_LINEAR is good for zooming
@@ -429,7 +429,7 @@ class InferWSI(object):
             else:
                 output_bbox = patch_info * down_sample_ratio
             output_bbox = np.rint(output_bbox).astype(np.int64)
-            # coord of the output of the patch (i.e center regions)
+            # coord of the output of the patch (i.e centre regions)
             output_roi = self.wsi_mask[
                 output_bbox[0][0] : output_bbox[1][0],
                 output_bbox[0][1] : output_bbox[1][1],
@@ -447,8 +447,6 @@ class InferWSI(object):
             patch_info_list: coordinates of input patches
 
         """ 
-        # 1 dedicated thread just to write results back to disk
-        proc_pool = Pool(processes=1)
         wsi_pred_map_mmap_path = "%s/prob_map.npy" % self.cache_dir
 
         masking = lambda x, a, b: (a <= x) & (x <= b)
@@ -468,10 +466,8 @@ class InferWSI(object):
 
             # there no valid patches, so flush 0 and skip
             if tile_patch_info_list.shape[0] == 0:
-                proc_pool.apply_async(
-                    assemble_and_flush, args=(
-                        wsi_pred_map_mmap_path, tile_info, self.base_mag_ds, None)
-                )
+                assemble_and_flush(wsi_pred_map_mmap_path, tile_info,
+                               self.base_mag_ds, None)
                 continue
 
             # change the coordinates from wrt slide to wrt tile
@@ -488,13 +484,8 @@ class InferWSI(object):
                 tile_patch_info_list[:, 0, 0], idx, nr_tiles
             )
 
-            proc_pool.apply_async(
-                assemble_and_flush,
-                args=(wsi_pred_map_mmap_path, tile_info,
-                      self.base_mag_ds, patch_output_list),
-            )
-        proc_pool.close()
-        proc_pool.join()
+            assemble_and_flush(wsi_pred_map_mmap_path, tile_info,
+                               self.base_mag_ds, patch_output_list)
         return
 
     def __dispatch_post_processing(self, tile_info_list, callback):
@@ -814,15 +805,15 @@ class InferWSI(object):
             filename = os.path.basename(filename)
             self.basename = os.path.splitext(filename)[0]
             self.output_dir_wsi = self.output_dir + "/" + self.basename
-            if not os.path.exists(self.output_dir_wsi):
-                start = time.perf_counter()  # init timer
+            # if not os.path.exists(self.output_dir_wsi):
+            start = time.perf_counter()  # init timer
 
-                rm_n_mkdir(self.output_dir_wsi)
-                start_time_total = time.time()
-                self.process_wsi(filename)
+            rm_n_mkdir(self.output_dir_wsi)
+            start_time_total = time.time()
+            self.process_wsi(filename)
 
-                end = time.perf_counter()
-                print("Overall Time:", round(end-start), 'secs')
+            end = time.perf_counter()
+            print("Overall Time:", round(end-start), 'secs')
 
 
 # -------------------------------------------------------------------------------------
