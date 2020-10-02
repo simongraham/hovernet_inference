@@ -10,16 +10,16 @@ Usage:
 Options:
   -h --help                  Show this string.
   --version                  Show version.
-  --gpu=<id>                 GPU list. [default: 1]
+  --gpu=<id>                 GPU list. [default: 0]
   --mode=<mode>              Inference mode. `tile` or `wsi`. [default: wsi]
   --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz` [default: pannuke.npz]
-  --input_dir=<path>         Directory containing input images/WSIs. [default: wsi_input]
-  --output_dir=<path>        Directory where the output will be saved. [default: wsi_output/]
+  --input_dir=<path>         Directory containing input images/WSIs. 
+  --output_dir=<path>        Directory where the output will be saved. 
   --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
   --batch_size=<n>           Batch size. [default: 25]
   --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
   --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 2048]
-  --postproc_workers=<n>     Number of workers for post processing. [default: 0]
+  --postproc_workers=<n>     Number of workers for post processing. [default: 8]
   --return_probs             Whether to return the class probabilities for each nucleus
 
 """
@@ -365,11 +365,11 @@ class InferWSI(object):
                 patch_coord[0] : patch_coord[0] + self.patch_input_shape_tmp[0],
                 patch_coord[1] : patch_coord[1] + self.patch_input_shape_tmp[0],
             ]
-            if self.base_mag_ds > 1:
+            if self.factor_40_base > 1:
                 # cv.INTER_LINEAR is good for zooming
                 win = cv2.resize(
                     win, (self.patch_input_shape[1], self.patch_input_shape[0]), cv2.INTER_LINEAR)
-                patch_coord *= self.base_mag_ds
+                patch_coord *= self.factor_40_base
             sub_patches.append(win)
             patches_info.append(patch_coord)
 
@@ -467,7 +467,7 @@ class InferWSI(object):
             # there no valid patches, so flush 0 and skip
             if tile_patch_info_list.shape[0] == 0:
                 assemble_and_flush(wsi_pred_map_mmap_path, tile_info,
-                               self.base_mag_ds, None)
+                                   self.factor_40_base, None)
                 continue
 
             # change the coordinates from wrt slide to wrt tile
@@ -485,7 +485,7 @@ class InferWSI(object):
             )
 
             assemble_and_flush(wsi_pred_map_mmap_path, tile_info,
-                               self.base_mag_ds, patch_output_list)
+                               self.factor_40_base, patch_output_list)
         return
 
     def __dispatch_post_processing(self, tile_info_list, callback):
@@ -541,7 +541,8 @@ class InferWSI(object):
         )
 
         base_mag = self.wsi_handler.metadata["base_mag"]
-        self.base_mag_ds = int(round(40.0 / base_mag)) # if scanned at 20x, this will be 2
+        # if scanned at 20x, this will be 2
+        self.factor_40_base = int(round(40.0 / base_mag))
 
         self.wsi_proc_shape = self.wsi_handler.metadata["level_dims"][self.wsi_proc_lvl]
         self.wsi_proc_shape = np.array(self.wsi_proc_shape[::-1])  # to Y, X
@@ -581,13 +582,13 @@ class InferWSI(object):
         self.wsi_prob_map_mmap = np.lib.format.open_memmap(
             "%s/prob_map.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape*self.base_mag_ds) + (out_ch,),
+            shape=tuple(self.wsi_proc_shape*self.factor_40_base) + (out_ch,),
             dtype=np.float32,
         )
         self.wsi_inst_map = np.lib.format.open_memmap(
             "%s/pred_inst.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape*self.base_mag_ds),
+            shape=tuple(self.wsi_proc_shape*self.factor_40_bases),
             dtype=np.int32,
         )
 
@@ -597,13 +598,14 @@ class InferWSI(object):
 
         patch_input_shape_tmp = np.array(self.patch_input_shape)
         self.patch_input_shape_tmp = (
-            patch_input_shape_tmp/self.base_mag_ds).astype('int')
+            patch_input_shape_tmp/self.factor_40_base).astype('int')
 
         patch_stride = np.array(self.patch_output_shape)
-        patch_stride = (patch_stride/self.base_mag_ds).astype('int')
+        patch_stride = (patch_stride/self.factor_40_base).astype('int')
 
         # make tile smaller if not at 40x. We extract more patches and resize if 20x
-        inf_tile_input_shape = np.array(self.inf_tile_shape) / self.base_mag_ds
+        inf_tile_input_shape = np.array(
+            self.inf_tile_shape) / self.factor_40_base
         inf_tile_info_list, patch_info_list = get_tile_patch_info(
             self.wsi_proc_shape,
             inf_tile_input_shape,
@@ -641,9 +643,9 @@ class InferWSI(object):
                 wsi_max_id = max(self.wsi_inst_info.keys())
             for inst_id, inst_info in inst_info_dict.items():
                 # now correct the coordinate wrt wsi
-                inst_info["bbox"] += top_left
-                inst_info["contour"] += top_left
-                inst_info["centroid"] += top_left
+                inst_info["bbox"] += (top_left*self.factor_40_base)
+                inst_info["contour"] += (top_left*self.factor_40_base)
+                inst_info["centroid"] += (top_left*self.factor_40_base)
                 self.wsi_inst_info[inst_id + wsi_max_id] = inst_info
             pred_inst[pred_inst > 0] += wsi_max_id
             self.wsi_inst_map[
@@ -714,9 +716,9 @@ class InferWSI(object):
             for inst_id in inner_inst_list:
                 inst_info = inst_info_dict[inst_id]
                 # now correct the coordinate wrt to wsi
-                inst_info["bbox"] += top_left
-                inst_info["contour"] += top_left
-                inst_info["centroid"] += top_left
+                inst_info["bbox"] += (top_left*self.factor_40_base)
+                inst_info["contour"] += (top_left*self.factor_40_base)
+                inst_info["centroid"] += (top_left*self.factor_40_base)
                 self.wsi_inst_info[inst_id + wsi_max_id] = inst_info
             pred_inst[pred_inst > 0] += wsi_max_id
             pred_inst = roi_inst + pred_inst
@@ -756,6 +758,11 @@ class InferWSI(object):
         for inst_id, inst_info in self.wsi_inst_info.items():
             new_inst_info = {}
             for info_name, info_value in inst_info.items():
+                # save results at scan resolution
+                if info_name == 'bbox' or info_name == 'contour' or info_name == 'centroid':
+                    if self.factor_40_base > 1:
+                        print(info_value)
+                        info_value = info_value / self.factor_40_base
                 # convert to JSON
                 if isinstance(info_value, np.ndarray):
                     info_value = info_value.tolist()
