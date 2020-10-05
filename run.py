@@ -13,8 +13,8 @@ Options:
   --gpu=<id>                 GPU list. [default: 0]
   --mode=<mode>              Inference mode. `tile` or `wsi`. [default: wsi]
   --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz` [default: pannuke.npz]
-  --input_dir=<path>         Directory containing input images/WSIs. 
-  --output_dir=<path>        Directory where the output will be saved. 
+  --input_dir=<path>         Directory containing input images/WSIs. [default: wsi_input]
+  --output_dir=<path>        Directory where the output will be saved. [default: wsi_output]
   --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
   --batch_size=<n>           Batch size. [default: 25]
   --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
@@ -502,8 +502,8 @@ class InferWSI(object):
 
         wsi_pred_map_mmap_path = "%s/prob_map.npy" % self.cache_dir
         for idx in list(range(tile_info_list.shape[0])):
-            tile_tl = tile_info_list[idx][0]
-            tile_br = tile_info_list[idx][1]
+            tile_tl = tile_info_list[idx][0] * self.factor_40_base
+            tile_br = tile_info_list[idx][1] * self.factor_40_base
 
             tile_info = (idx, tile_tl, tile_br)
             func_kwargs = {
@@ -585,10 +585,15 @@ class InferWSI(object):
             shape=tuple(self.wsi_proc_shape*self.factor_40_base) + (out_ch,),
             dtype=np.float32,
         )
+
+        # uncomment below if plan to load prob map straight from cache (for debugging!)
+        # self.wsi_prob_map_mmap = np.load(
+        #     "%s/prob_map.npy" % self.cache_dir, mmap_mode='r')
+
         self.wsi_inst_map = np.lib.format.open_memmap(
             "%s/pred_inst.npy" % self.cache_dir,
             mode="w+",
-            shape=tuple(self.wsi_proc_shape*self.factor_40_bases),
+            shape=tuple(self.wsi_proc_shape*self.factor_40_base),
             dtype=np.int32,
         )
 
@@ -643,9 +648,10 @@ class InferWSI(object):
                 wsi_max_id = max(self.wsi_inst_info.keys())
             for inst_id, inst_info in inst_info_dict.items():
                 # now correct the coordinate wrt wsi
-                inst_info["bbox"] += (top_left*self.factor_40_base)
-                inst_info["contour"] += (top_left*self.factor_40_base)
-                inst_info["centroid"] += (top_left*self.factor_40_base)
+
+                inst_info["contour"] += (top_left)
+                inst_info["centroid"] += (top_left)
+
                 self.wsi_inst_info[inst_id + wsi_max_id] = inst_info
             pred_inst[pred_inst > 0] += wsi_max_id
             self.wsi_inst_map[
@@ -716,9 +722,9 @@ class InferWSI(object):
             for inst_id in inner_inst_list:
                 inst_info = inst_info_dict[inst_id]
                 # now correct the coordinate wrt to wsi
-                inst_info["bbox"] += (top_left*self.factor_40_base)
-                inst_info["contour"] += (top_left*self.factor_40_base)
-                inst_info["centroid"] += (top_left*self.factor_40_base)
+                inst_info["contour"] += (top_left)
+                inst_info["centroid"] += (top_left)
+
                 self.wsi_inst_info[inst_id + wsi_max_id] = inst_info
             pred_inst[pred_inst > 0] += wsi_max_id
             pred_inst = roi_inst + pred_inst
@@ -759,10 +765,10 @@ class InferWSI(object):
             new_inst_info = {}
             for info_name, info_value in inst_info.items():
                 # save results at scan resolution
-                if info_name == 'bbox' or info_name == 'contour' or info_name == 'centroid':
+                if info_name == 'centroid' or info_name == 'contour':
                     if self.factor_40_base > 1:
-                        print(info_value)
                         info_value = info_value / self.factor_40_base
+                    info_value = int(round(info_value))
                 # convert to JSON
                 if isinstance(info_value, np.ndarray):
                     info_value = info_value.tolist()
