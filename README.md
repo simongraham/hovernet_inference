@@ -4,7 +4,7 @@ HoVer-Net Tile and WSI processing code for simultaneous nuclear segmentation and
 
 [Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper.  <br />
 
-**NEWS:** Our model achieved the best performance in the MoNuSAC challenge.  <br />
+**NEWS:** Our model achieved the best performance in the [MoNuSAC challenge](https://monusac-2020.grand-challenge.org/).  <br />
 
 If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
 
@@ -78,12 +78,14 @@ with open(json_path) as json_file:
     data = json.load(json_file)
     for inst in data:
         inst_info = data[inst]
-        inst_bbox = inst_info['bbox']
         inst_centroid = inst_info['centroid']
         inst_contour = inst_info['contour']
         inst_type = inst_info['type']
         inst_prob = inst_info['probs']
 ```
+
+Here, `centroid` and `contour` are the coordinates of the centroid and contours coordinates of each instance. `type` is the prediction of the nuclear type, which is an integer from 0 to `N`, where `N` is the number of classes. The instance will be labelled as 0 if all nuclear pixels have been predicted as the background class. `probs` is the per class probabilities of each nucleus. The probability of each class is determined by the proportion of pixels assigned to each class in each nucleus.
+
 ## Datasets
 
 In this repository, we provide checkpoints trained on two datasets:
@@ -123,6 +125,7 @@ BibTex entry: <br />
   year={2019},
   publisher={Elsevier}
 }
+
 @inproceedings{gamper2019pannuke,
   title={PanNuke: an open pan-cancer histology dataset for nuclei instance segmentation and classification},
   author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Benet, Ksenija and Khuram, Ali and Rajpoot, Nasir},
@@ -131,12 +134,14 @@ BibTex entry: <br />
   year={2019},
   organization={Springer}
 }
+
 @article{gamper2020pannuke,
   title={PanNuke Dataset Extension, Insights and Baselines},
   author={Gamper, Jevgenij and Koohbanani, Navid Alemi and Graham, Simon and Jahanifar, Mostafa and Benet, Ksenija and Khurram, Syed Ali and Azam, Ayesha and Hewitt, Katherine and Rajpoot, Nasir},
   journal={arXiv preprint arXiv:2003.10778},
   year={2020}
 }
+
 @article{monusac2020,
 author = {Verma, Ruchika; Kumar, Neeraj; Patil, Abhijeet; Kurian, Nikhil; Rane, Swapnil; and Sethi, Amit},
 year = {2020},
@@ -152,13 +157,20 @@ doi = {10.13140/RG.2.2.12290.02244/1},
 
 ## Extra Notes
 
-In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing. For further information on how to run the models, refer to the `usage.ipynb` jupyter notebook.
+In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing. For further information on how to run the models, refer to the `usage.ipynb` jupyter notebook. <br />
+
+Models were trained on data at ~40x objective magnification. Therefore, for tile processing, ensure that your data is also at this magnification level. For WSI processing, we ensure patches are processed at 40x. For this, if the slide is scanned < 40x, we scale each patch before before input to HoVer-Net.
 
 ## License
 
 Note that the PanNuke dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
 
-## Contributors
+## Authors and Contributors
+
+Authors:
+
+- [Simon Graham](https://github.com/simongraham)
+- [Quoc Dang Vu](https://github.com/vqdang)
 
 See the list of [contributors](https://github.com/simongraham/hovernet_inference/graphs/contributors) who participated in this project.
 
