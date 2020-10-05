@@ -119,6 +119,7 @@ def process(pred_map, nr_types=None, return_dict=False, return_probs=False):
     if return_dict or nr_types is not None:
         inst_id_list = np.unique(pred_inst)[1:]  # exlcude background
         inst_info_dict = {}
+        inst_bbox_dict = {}
         for idx, inst_id in enumerate(inst_id_list):
             inst_map = pred_inst == inst_id
             # TODO: change format of bbox output
@@ -144,15 +145,18 @@ def process(pred_map, nr_types=None, return_dict=False, return_probs=False):
             inst_centroid[0] += inst_bbox[0][1]  # X
             inst_centroid[1] += inst_bbox[0][0]  # Y
             inst_info_dict[inst_id] = {  # inst_id should start at 1
-                "bbox": inst_bbox,
                 "centroid": inst_centroid,
                 "contour": inst_contour,
             }
+            inst_bbox_dict[inst_id] = {  # inst_id should start at 1
+                "bbox": inst_bbox
+            }
+
 
     if nr_types is not None:
         #### * Get class of each instance id, stored at index id-1
         for idx, inst_id in enumerate(inst_id_list):
-            rmin, cmin, rmax, cmax = (inst_info_dict[inst_id]["bbox"]).flatten()
+            rmin, cmin, rmax, cmax = (inst_bbox_dict[inst_id]["bbox"]).flatten()
             inst_map_crop = pred_inst[rmin:rmax, cmin:cmax]
             inst_type_crop = pred_type[rmin:rmax, cmin:cmax]
             inst_map_crop = inst_map_crop == inst_id
