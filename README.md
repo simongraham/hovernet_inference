@@ -98,18 +98,19 @@ The network will output an intefer value for each nuclear instance denoting the 
 **PanNuke:**
 - 0: Background
 - 1: Neoplastic
-- 2: inflammatory
+- 2: Inflammatory
 - 3: Connective
 - 4: Dead
 - 5: Non-Neoplastic Epithelial
 
 **MoNuSAC:**
 - 0: Background
-- 1: Neoplastic
-- 2: inflammatory
-- 3: Connective
-- 4: Dead
-- 5: Non-Neoplastic Epithelial
+- 1: Epithelial
+- 2: Lymphocyte
+- 3: Macrophage
+- 4: Neutrophil
+
+Note, in the MoNuSAC dataset the positive classes do not span **all** nuclei. For example, fibroblasts are treated as background.
 
 ## Citation 
 
