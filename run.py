@@ -12,14 +12,14 @@ Options:
   --version                  Show version.
   --gpu=<id>                 GPU list. [default: 0]
   --mode=<mode>              Inference mode. `tile` or `wsi`. [default: wsi]
-  --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz` [default: pannuke.npz]
-  --input_dir=<path>         Directory containing input images/WSIs. [default: wsi_input]
-  --output_dir=<path>        Directory where the output will be saved. [default: wsi_output]
+  --model=<path>             Path to model. Use either `pannuke.npz` or `monusac.npz` [default: hovernet.npz]
+  --input_dir=<path>         Directory containing input images/WSIs. 
+  --output_dir=<path>        Directory where the output will be saved.
   --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
   --batch_size=<n>           Batch size. [default: 25]
-  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
+  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 15000]
   --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 2048]
-  --postproc_workers=<n>     Number of workers for post processing. [default: 8]
+  --postproc_workers=<n>     Number of workers for post processing. [default: 10]
   --return_probs             Whether to return the class probabilities for each nucleus
 
 """
@@ -544,6 +544,7 @@ class InferWSI(object):
         # if scanned at 20x, this will be 2
         self.factor_40_base = int(round(40.0 / base_mag))
 
+
         self.wsi_proc_shape = self.wsi_handler.metadata["level_dims"][self.wsi_proc_lvl]
         self.wsi_proc_shape = np.array(self.wsi_proc_shape[::-1])  # to Y, X
 
@@ -768,7 +769,7 @@ class InferWSI(object):
                 if info_name == 'centroid' or info_name == 'contour':
                     if self.factor_40_base > 1:
                         info_value = info_value / self.factor_40_base
-                    info_value = int(round(info_value))
+                    info_value = np.round(info_value).astype('int')
                 # convert to JSON
                 if isinstance(info_value, np.ndarray):
                     info_value = info_value.tolist()
