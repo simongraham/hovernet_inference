@@ -1,9 +1,13 @@
 # HoVer-Net Inference Code
 
-HoVer-Net ROI and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
+HoVer-Net Tile and WSI processing code for simultaneous nuclear segmentation and classification in histology images. <br />
+
+[Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper.  <br />
+
+**NEWS:** Our model achieved the best performance in the [MoNuSAC challenge](https://monusac-2020.grand-challenge.org/).  <br />
+
 If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
 
-[Link](https://www.sciencedirect.com/science/article/abs/pii/S1361841519301045?via%3Dihub) to Medical Image Analysis paper. 
 
 ## Set up envrionment
 
@@ -13,59 +17,100 @@ conda activate hovernet
 pip install -r requirements.txt
 ```
 
+Glymur requires OpenJPEG as a dependency. If this is not installed, use `conda install -c conda-forge openjpeg`.
+
 ## Running the code
 
-Before running the code, download the HoVer-Net weights [here](https://drive.google.com/file/d/1k1GSsQkFkSjYY0eXi2Kx7Hlj8AGrhOOP/view?usp=sharing).[![Creative Commons License](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/) (see below for licensing details)
+Before running the code, download the HoVer-Net weights [here](https://drive.google.com/drive/folders/1OhKlymBmXFEU5oTfLl2E-CiZKnsOZtCS?usp=sharing). There are two checkpoint files that are available to use: `pannuke.npz` and `monusac.npz`, which correspond to the dataset that they were trained on. See below for licensing details. 
 
 Usage:
 ```
-  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] [--batch_size=<n>] [--tile_size=<n>] 
+  python run.py [--gpu=<id>] [--mode=<mode>] [--model=<path>] [--input_dir=<path>] [--output_dir=<path>] \
+      [--cache_dir=<path>] [--batch_size=<n>] [--inf_tile_shape=<n>] [--proc_tile_shape=<n>] \
+      [--postproc_workers=<n>] [--return_probs]
   python run.py (-h | --help)
   python run.py --version
 ```
-```
 Options:
-  -h --help            Show this screen.
-  --version            Show version.
-  --gpu=<id>           GPU list. [default: 0]
-  --mode=<mode>        Inference mode. 'roi' or 'wsi'. [default: roi]
-  --model=<path>       Path to saved checkpoint.
-  --input_dir=<path>   Directory containing input images/WSIs.
-  --output_dir=<path>  Directory where the output will be saved. [default: output/]
-  --batch_size=<n>     Batch size. [default: 25]
-  --tile_size=<n>      Size of tiles (assumes square shape). [default: 20000]
-  --return_masks       Whether to return cropped nuclei masks
+```
+  -h --help                  Show this string.
+  --version                  Show version.
+  --gpu=<id>                 GPU list. [default: 0]
+  --mode=<mode>              Inference mode. 'tile' or 'wsi'. [default: tile]
+  --model=<str>              Choose either `pannuke` or `monusac` to use model trained on corresponding dataset. [default: pannuke]
+  --input_dir=<path>         Directory containing input images/WSIs.
+  --output_dir=<path>        Directory where the output will be saved. [default: output/]
+  --cache_dir=<path>         Cache directory for saving temporary output. [default: cache/]
+  --batch_size=<n>           Batch size. [default: 25]
+  --inf_tile_shape=<n>       Size of tiles for inference (assumes square shape). [default: 10000]
+  --proc_tile_shape=<n>      Size of tiles for post processing (assumes square shape). [default: 2048]
+  --postproc_workers=<n>     Number of workers for post processing. [default: 10]
+  --return_probs             Whether to return the class probabilities for each nucleus
 ```
 
 Example:
 ```
-python run.py --gpu='0' --mode='roi' --model='hovernet.npz' --input_dir='roi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output'
-python run.py --gpu='0' --mode='wsi' --model='hovernet.npz' --input_dir='wsi_dir' --output_dir='output' --return_masks
+python run.py --gpu='0' --mode='roi' --model='pannuke.npz' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='roi' --model='monusac.npz' --input_dir='tile_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='pannuke.npz' --input_dir='wsi_dir' --output_dir='output'
+python run.py --gpu='0' --mode='wsi' --model='monusac.npz' --input_dir='wsi_dir' --output_dir='output' --return_probs
 ```
 
-There are two modes for running this code: `'roi'` and `'wsi'`.
+There are two modes for running this code: `tile` and `wsi`.
 
-* `'roi'`
-    * **Input**: standard image file
-    * **Output 1**: Overlaid results on image
-    * **Output 2**: `.npy` file -> first channel = instance seg mask, 2nd channel = class mask
+* `tile`
+    * **Input**: standard image file - for example, `.jpg` or `.png`
+    * **Output 1**: Overlaid results on image (`.png` file)
+    * **Output 2**: Instance segmentation map (`.npy` file)
+    * **Output 3**: Instance dictionary (`.json` file)
 
-* `'wsi'`
-    * **Input**: whole-slide image
-    * **Output**: `.npz` file with saved centroids, masks, and type predictions
-  
-Note, masks are only saved in `'wsi'` mode when `--return_masks` is provided.  <br />
+* `wsi`
+    * **Input**: Whole-slide image - for example, `.svs`, `.ndpi`, `.tiff`, `.mrxs`, `.jp2`
+    * **Output 1**: Low resolution thumbnail (`.png` file)
+    * **Output 2**: Binary tissue mask at the same resolution of the thumbnail (`.png` file)
+    * **Output 3**: Instance dictionary (`.json` file)
 
-In `'wsi'` mode, the WSI is broken into tiles and each tile is processed indepdently. `--tile_size` may be used to alter the size of tiles if needed. <br />
+In `wsi` mode, the WSI is broken into tiles and each tile is processed independently. `--inf_tile_shape` may be used to alter the size of tiles if needed. Similary, the post processing tile can be modified at `--proc_tile_shape`. Using tiles during post processing speeds up overall time and prevents any potential memory errors. <br />
 
-To access the `.npz` file, use: 
+To access the `.json` file, use: 
 ```
-fileload = np.load(filename)
-masks = fileload['mask']
-centroids = fileload['centroid']
-predictions = fileload['type']
+with open(json_path) as json_file:
+    data = json.load(json_file)
+    for inst in data:
+        inst_info = data[inst]
+        inst_centroid = inst_info['centroid']
+        inst_contour = inst_info['contour']
+        inst_type = inst_info['type']
+        inst_prob = inst_info['probs']
 ```
+
+Here, `centroid` and `contour` are the coordinates of the centroid and contours coordinates of each instance. `type` is the prediction of the nuclear type, which is an integer from 0 to `N`, where `N` is the number of classes. The instance will be labelled as 0 if all nuclear pixels have been predicted as the background class. `probs` is the per class probabilities of each nucleus. The probability of each class is determined by the proportion of pixels assigned to each class in each nucleus.
+
+## Datasets
+
+In this repository, we provide checkpoints trained on two datasets:
+
+- [PanNuke Dataset](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke)
+- [MoNuSAC Challenge Dataset](https://monusac-2020.grand-challenge.org/)
+
+The network will output an intefer value for each nuclear instance denoting the class prediction. The meaning of these values for each dataset is provided below: <br />
+
+**PanNuke:**
+- 0: Background
+- 1: Neoplastic
+- 2: Inflammatory
+- 3: Connective
+- 4: Dead
+- 5: Non-Neoplastic Epithelial
+
+**MoNuSAC:**
+- 0: Background
+- 1: Epithelial
+- 2: Lymphocyte
+- 3: Macrophage
+- 4: Neutrophil
+
+Note, in the MoNuSAC dataset the positive classes do not span **all** nuclei. For example, fibroblasts are treated as background.
 
 ## Citation 
 
@@ -97,21 +142,36 @@ BibTex entry: <br />
   journal={arXiv preprint arXiv:2003.10778},
   year={2020}
 }
+
+@article{monusac2020,
+author = {Verma, Ruchika; Kumar, Neeraj; Patil, Abhijeet; Kurian, Nikhil; Rane, Swapnil; and Sethi, Amit},
+year = {2020},
+month = {02},
+pages = {},
+language = {en},
+title = {Multi-organ Nuclei Segmentation and Classification Challenge 2020},
+publisher = {Unpublished},
+doi = {10.13140/RG.2.2.12290.02244/1},
+ url = {http://rgdoi.net/10.13140/RG.2.2.12290.02244/1}
+}
 ```
 
-## Dataset
+## Extra Notes
 
-The network was trained on the PanNuke dataset, where images are of size 256x256. This explains the slight difference in the input size of HoVer-Net compared to the original paper. In this repository, we also use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the paper to speed up inference for WSI processing. <br />
+In this repository, we use 3x3 valid convolution in the decoder, as opposed to 5x5 convolution in the original paper. This leads to a slightly larger output and consequently speeds up inference, which is especially important for WSI processing. For further information on how to run the models, refer to the `usage.ipynb` jupyter notebook. <br />
 
-Download the PanNuke dataset [here](https://warwick.ac.uk/fac/sci/dcs/research/tia/data/pannuke).
-
-![](doc/dataset.png)
+Models were trained on data at ~40x objective magnification. Therefore, for tile processing, ensure that your data is also at this magnification level. For WSI processing, we ensure patches are processed at 40x. For this, if the slide is scanned < 40x, we scale each patch before before input to HoVer-Net.
 
 ## License
 
 Note that the PanNuke dataset is licensed under [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/), therefore the derived weights for HoVer-Net are also shared under the same license. Please consider the implications of using the weights under this license on your work and it's licensing. 
 
-## Contributors
+## Authors and Contributors
+
+Authors:
+
+- [Simon Graham](https://github.com/simongraham)
+- [Quoc Dang Vu](https://github.com/vqdang)
 
 See the list of [contributors](https://github.com/simongraham/hovernet_inference/graphs/contributors) who participated in this project.
 

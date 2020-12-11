@@ -16,7 +16,13 @@ __pycache__/
 # Model and other data
 *.pth
 *.npy
+*.npz
 .idea
 *.DS_Store
 .pytest_cache/
 *.pyc
+
+# Local directories
+wsi/
+wsi_out/
+cache/
