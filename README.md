@@ -6,7 +6,7 @@ HoVer-Net Tile and WSI processing code for simultaneous nuclear segmentation and
 
 **NEWS:** Our model achieved the best performance in the [MoNuSAC challenge](https://monusac-2020.grand-challenge.org/).  <br />
 
-If you require the model to be trained, refer to the [original repository](https://github.com/vqdang/hover_net).  <br />
+We will now be primarily supporting the PyTorch version of this code, which also enables model training. For more information please refer to [this repository](https://github.com/vqdang/hover_net).  <br />
 
 
 ## Set up envrionment
