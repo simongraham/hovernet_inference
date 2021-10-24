@@ -143,16 +143,12 @@ BibTex entry: <br />
   year={2020}
 }
 
-@article{monusac2020,
-author = {Verma, Ruchika; Kumar, Neeraj; Patil, Abhijeet; Kurian, Nikhil; Rane, Swapnil; and Sethi, Amit},
-year = {2020},
-month = {02},
-pages = {},
-language = {en},
-title = {Multi-organ Nuclei Segmentation and Classification Challenge 2020},
-publisher = {Unpublished},
-doi = {10.13140/RG.2.2.12290.02244/1},
- url = {http://rgdoi.net/10.13140/RG.2.2.12290.02244/1}
+@article{verma2021monusac2020,
+  title={MoNuSAC2020: A Multi-organ Nuclei Segmentation and Classification Challenge},
+  author={Verma, Ruchika and Kumar, Neeraj and Patil, Abhijeet and Kurian, Nikhil Cherian and Rane, Swapnil and Graham, Simon and Vu, Quoc Dang and Zwager, Mieke and Raza, Shan E Ahmed and Rajpoot, Nasir and others},
+  journal={IEEE Transactions on Medical Imaging},
+  year={2021},
+  publisher={IEEE}
 }
 ```
 
